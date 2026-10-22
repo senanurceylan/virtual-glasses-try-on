@@ -1,0 +1,351 @@
+:root {
+  --bg: #0e1116;
+  --surface: #171b22;
+  --surface-2: #1f252e;
+  --border: #2a313c;
+  --text: #e8ecf1;
+  --muted: #8b95a3;
+  --accent: #5b8cff;
+  --accent-soft: rgba(91, 140, 255, 0.15);
+  --danger: #ff6b6b;
+  --warn: #ffc400;
+  --ok: #3ddc97;
+  --radius: 14px;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+/* ---------- Yerleşim ---------- */
+.app {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100%;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-icon {
+  font-size: 28px;
+}
+
+.brand h1 {
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.brand p {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.app-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 20px;
+  padding: 20px 24px;
+  min-height: 0;
+}
+
+@media (max-width: 900px) {
+  .app-main {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+}
+
+/* ---------- Kamera sahnesi ---------- */
+.stage {
+  position: relative;
+  width: 100%;
+  max-height: 100%;
+  margin: auto;
+  background: #000;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.stage-layers {
+  position: absolute;
+  inset: 0;
+  transform: scaleX(-1); /* ayna görüntüsü */
+}
+
+.stage-layers > * {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.stage-video,
+.stage-canvas {
+  /* Video ve canvas aynı object-fit'i kullanır; kırpma olsa bile birebir hizalı kalırlar. */
+  object-fit: cover;
+}
+
+.stage-canvas {
+  pointer-events: none;
+}
+
+.stage-notice {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(520px, calc(100% - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  text-align: center;
+  backdrop-filter: blur(8px);
+  background: rgba(23, 27, 34, 0.8);
+  border: 1px solid var(--border);
+}
+
+.stage-notice span {
+  color: var(--muted);
+}
+
+.stage-notice--warn {
+  border-color: rgba(255, 196, 0, 0.5);
+}
+
+.stage-notice--warn strong {
+  color: var(--warn);
+}
+
+.stage-notice--error strong {
+  color: var(--danger);
+}
+
+.stage-message {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px;
+  text-align: center;
+  background: rgba(14, 17, 22, 0.85);
+}
+
+.stage-message--error p {
+  color: var(--danger);
+  max-width: 420px;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- Yan panel ---------- */
+.side-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.card h2 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  background: var(--surface-2);
+  margin-bottom: 12px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.status-pill--ok .status-dot {
+  background: var(--ok);
+  box-shadow: 0 0 8px var(--ok);
+}
+
+.status-pill--warn .status-dot {
+  background: var(--warn);
+}
+
+.status-pill--error .status-dot {
+  background: var(--danger);
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+
+.kv dt {
+  color: var(--muted);
+}
+
+.kv dd {
+  margin: 0;
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.toggle input {
+  accent-color: var(--accent);
+}
+
+.toggle input:disabled + span {
+  color: var(--muted);
+}
+
+/* ---------- Düğmeler ---------- */
+.btn {
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.btn:hover {
+  filter: brightness(1.1);
+}
+
+.btn--ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+/* ---------- Durum çubuğu ---------- */
+.status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+  padding: 10px 24px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 12px;
+}
+
+.status-spacer {
+  flex: 1;
+}
+
+.metric {
+  display: inline-flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.metric-label {
+  color: var(--muted);
+}
+
+.metric-value {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.metric--highlight .metric-value {
+  color: var(--accent);
+  font-weight: 600;
+}

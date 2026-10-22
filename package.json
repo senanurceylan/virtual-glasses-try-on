@@ -1,0 +1,27 @@
+{
+  "name": "sanal-gozluk",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "predev": "node scripts/copy-wasm.mjs",
+    "build": "vite build",
+    "prebuild": "node scripts/copy-wasm.mjs",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "model": "node scripts/download-model.mjs"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^1.1.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  }
+}
