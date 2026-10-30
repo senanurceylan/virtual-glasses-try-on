@@ -27,6 +27,7 @@ macOS ilk seferde tarayıcı için kamera izni isteyebilir
 | `npm run dev` | Geliştirme sunucusu |
 | `npm test` | Birim testleri (Vitest) |
 | `npm run build` | Üretim derlemesi (`dist/`) |
+| `npm run bench:filter` | One Euro filtresi ölçüm tablosu (titreme azalması, gecikme; 15/30/60 FPS) |
 | `npm run glasses` | `assets/glasses/*.svg` → `public/glasses/*.png` gözlük görsellerini üretir |
 
 ## Klasör yapısı
@@ -75,13 +76,47 @@ Occlusion (saplar kafanın arkasına geçince gizlenir):
 
 Panelden **Occlusion maskelerini göster** seçilince maskeler tel kafes olarak görünür.
 
+## Stabilizasyon (One Euro filtresi)
+
+MediaPipe noktaları sabit bir yüzde bile kareden kareye 1–2 piksel oynar, bu da gözlüğün titremesine yol açar. Gözlüğü yerleştiren parametreler One Euro filtresinden geçirilir (`src/core/oneEuroFilter.js`, `src/core/stabilizer.js`):
+
+```
+α  = r / (r + 1),   r = 2π · fc · Δt        (Δt = gerçek kare süresi)
+dx = alçak geçiren( (x − x̂_önceki) / Δt , dCutoff )
+fc = minCutoff + beta · |dx|
+x̂  = x̂_önceki + α · (x − x̂_önceki)
+```
+
+Yavaş harekette kesim frekansı düşük kalır ve titreme bastırılır. Hızlı harekette `beta` sayesinde kesim frekansı yükselir, gecikme azalır.
+
+| Kanal | Filtrelenen büyüklük | Not |
+|---|---|---|
+| Konum | göz orta noktası x, y, z (px) | hız, gözler arası mesafeye bölünür (yakın/uzak yüzde aynı davranış) |
+| Ölçek | log(gözler arası 2D ve 3D mesafe) | oransal değişim |
+| Eğim (2D) | göz çizgisi açısı θ | ±180° sınırında açı açılır, sıçrama olmaz |
+| Dönme (3D) | kafa pozu kuaterniyonu | slerp ve yarıküre kontrolü (q ≡ −q), Euler sıçraması yok |
+
+2D afin matris ve 3D poz aynı filtrelenmiş ölçümden hesaplanır, bu yüzden mod değiştirmek filtreyi sıfırlamaz. Yüz kaybolunca veya kareler arasında 0,5 sn'den uzun boşluk olunca filtre sıfırlanır. Yüz yeniden görünürse ilk kare ham değerle başlar, eski konumdan kayma olmaz.
+
+Varsayılan parametreler: `minCutoff = 1.0 Hz`, `beta = 2.0`, `dCutoff = 1.0 Hz`. Panelden değiştirilebilir, filtre kapatılabilir. Panelde ham ve filtrelenmiş değerler, canlı titreme ölçümü ve son 5 saniyenin grafiği gösterilir.
+
+Simülasyon sonuçları (`npm run bench:filter`, σ = 1 px gürültü, 1 IPD = 120 px):
+
+| FPS | Konum sapması azalması | Kareden kareye titreme azalması | Ani sıçrama %90 süresi | 360 px/s harekette gecikme |
+|---|---|---|---|---|
+| 15 | %52,0 | %76,0 | 133 ms (2 kare) | 18,4 ms |
+| 30 | %67,8 | %86,4 | 67 ms (2 kare) | 16,1 ms |
+| 60 | %79,1 | %92,2 | 33 ms (2 kare) | 13,4 ms |
+
+Karşılaştırma: düz alçak geçiren filtre (`beta = 0`) aynı harekette 159 ms geride kalır ve sıçramaya 383–467 ms'de ulaşır. Hiçbir senaryoda aşma (overshoot) olmaz.
+
 ## Aşamalar
 
 - [x] **Aşama 0:** Kurulum, kamera, performans ölçüm altyapısı
 - [x] **Aşama 1:** Yüz noktası tespiti (478 nokta, canvas çizimi, yüz yok uyarısı)
 - [x] **Aşama 2:** 2D gözlük yerleştirme (göz merkezleri, mesafe, eğim açısı, afin dönüşüm)
 - [x] **Aşama 3:** 3D gözlük (Three.js): kafa pozu matrisi, 3D model, occlusion, 2D/3D geçişi
-- [ ] Aşama 4: Stabilizasyon (One Euro filtresi)
+- [ ] **Aşama 4:** Stabilizasyon (One Euro filtresi): kod ve testler hazır, kamera testi bekleniyor
 - [ ] Aşama 5: Yüz şekli tahmini ve öneriler
 - [ ] Aşama 6: Arayüz geliştirmeleri
 - [ ] Aşama 7: Algoritma gösterim modu

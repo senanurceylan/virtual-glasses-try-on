@@ -3,3 +3,5 @@ dist
 public/models/*.task
 .DS_Store
 public/mediapipe
+.env
+.env.*

@@ -76,7 +76,14 @@ export function eulerAngles(quaternion) {
  */
 export function computeHeadPose(face, matrixData, width, height) {
   const metrics = eyeMetrics(eyeCenters(face, width, height));
-  const quaternion = rotationFromMatrix(matrixFromMediaPipe(matrixData));
+  return poseFromMetrics(metrics, rotationFromMatrix(matrixFromMediaPipe(matrixData)));
+}
+
+/**
+ * Göz ölçümleri ve dönmeden 3D pozu kurar. Stabilizasyon (One Euro) bu fonksiyona
+ * filtrelenmiş ölçüm ve kuaterniyonu verir; ham hesapla aynı yoldan geçer.
+ */
+export function poseFromMetrics(metrics, quaternion) {
   return {
     position: pixelToWorld(metrics.center),
     quaternion,

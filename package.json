@@ -10,6 +10,7 @@
     "prebuild": "node scripts/copy-wasm.mjs",
     "preview": "vite preview",
     "test": "vitest run",
+    "bench:filter": "node scripts/filter-benchmark.mjs",
     "test:watch": "vitest",
     "model": "node scripts/download-model.mjs",
     "glasses": "node scripts/build-glasses.mjs"

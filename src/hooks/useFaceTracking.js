@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { eyeCenters, eyeMetrics, glassesTransform } from '../core/eyeGeometry.js';
 import { detectFrame, FACE_CONTOURS } from '../core/faceLandmarker.js';
 import { FacePresence } from '../core/facePresence.js';
-import { computeHeadPose } from '../core/headPose.js';
 import { createMonotonicClock } from '../core/landmarkUtils.js';
+import { computePlacement } from '../core/placementPipeline.js';
+import { StabilityMonitor } from '../core/stabilityMonitor.js';
+import { PlacementStabilizer } from '../core/stabilizer.js';
 import { drawGlasses, drawPlacementGeometry } from '../render/glassesRenderer.js';
 import { drawLandmarkOverlay, syncCanvasSize } from '../render/landmarkOverlay.js';
 import { useFrameLoop } from './useFrameLoop.js';
@@ -12,16 +13,19 @@ import { useFrameLoop } from './useFrameLoop.js';
  * Kare başına işlem hattı:
  *   video karesi
  *     → [Tespit]       MediaPipe: 478 yüz noktası + 4×4 kafa pozu matrisi
- *     → [Yerleştirme]  2D: göz merkezleri, mesafe, açı → afin matris
- *                      3D: matristen dönme (yaw/pitch/roll) + landmark'tan konum/ölçek
+ *     → [Yerleştirme]  ham ölçüm (göz merkezleri, mesafe, açı, matristen dönme)
+ *                      → One Euro stabilizasyonu (açıksa)
+ *                      → 2D afin matris / 3D poz (ikisi de filtrelenmiş ölçümden)
  *     → [Çizim]        2D gözlük canvas'ı ya da nokta/geometri katmanı
  *     → [3D çizim]     Three.js (yalnızca 3D modda)
  *     → yüz var/yok durumu
  *
  * React state yalnızca yüz görünürlüğü değiştiğinde güncellenir; son yerleştirme
- * verisi `placementRef` ile paneller tarafından periyodik okunur.
+ * verisi `placementRef`, ham/filtreli titreme ölçümü `stabilityRef` ile paneller
+ * tarafından periyodik okunur.
  *
  * options: { mode: '2d'|'3d', overlay, showGlasses, showGeometry, showOccluders,
+ *            stabilize, filterParams: {minCutoff, beta, dCutoff},
  *            glasses: {image, anchors} | null }
  */
 export function useFaceTracking({
@@ -38,7 +42,10 @@ export function useFaceTracking({
   const presence = useMemo(() => new FacePresence(), []);
   const [faceVisible, setFaceVisible] = useState(false);
   const visibleRef = useRef(false);
-  const placementRef = useRef(null); // { metrics, transform, pose, width, height }
+  const stabilizer = useMemo(() => new PlacementStabilizer(), []);
+  const stability = useMemo(() => new StabilityMonitor(), []);
+  const placementRef = useRef(null); // computePlacement() çıktısı
+  const stabilityRef = useRef(stability);
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
@@ -59,14 +66,19 @@ export function useFaceTracking({
     const face = faces[0] ?? null;
     const matrix = matrices[0] ?? null;
 
-    const placement = perf.measure('Yerleştirme', () => {
-      if (!face) return null;
-      const metrics = eyeMetrics(eyeCenters(face, width, height));
-      const transform = !scene && opts.glasses ? glassesTransform(metrics, opts.glasses.anchors) : null;
-      const pose = matrix ? computeHeadPose(face, matrix, width, height) : null;
-      return { metrics, transform, pose, width, height };
-    });
+    const placement = perf.measure('Yerleştirme', () =>
+      computePlacement({
+        face,
+        matrix,
+        width,
+        height,
+        anchors: opts.glasses?.anchors,
+        stabilizer,
+        timeSec: now / 1000, // gerçek kare zamanı: filtre FPS değişse de aynı davranır
+      }),
+    );
     placementRef.current = placement;
+    stability.update(placement);
 
     perf.measure('Çizim', () => {
       // 2D gözlük yalnızca 2D modda; 3D modda bu katman boş kalır.
@@ -94,6 +106,16 @@ export function useFaceTracking({
     }
   });
 
+  // Filtre ayarları: açma/kapama durumu sıfırlar, parametreler anında uygulanır.
+  const { stabilize = true, filterParams } = options;
+  useEffect(() => {
+    stabilizer.setEnabled(stabilize);
+    stability.reset();
+  }, [stabilize, stabilizer, stability]);
+  useEffect(() => {
+    if (filterParams) stabilizer.setParams(filterParams);
+  }, [filterParams, stabilizer]);
+
   // 3D moddan çıkınca 3D canvas'ı temizle (2D gözlük bir sonraki karede çizilir).
   const mode = options.mode;
   useEffect(() => {
@@ -108,10 +130,12 @@ export function useFaceTracking({
     }
     sceneRef.current?.clear();
     presence.reset();
+    stabilizer.reset();
+    stability.reset();
     placementRef.current = null;
     visibleRef.current = false;
     setFaceVisible(false);
-  }, [enabled, overlayCanvasRef, glassesCanvasRef, sceneRef, presence]);
+  }, [enabled, overlayCanvasRef, glassesCanvasRef, sceneRef, presence, stabilizer, stability]);
 
-  return { faceVisible, placementRef, presence };
+  return { faceVisible, placementRef, stabilityRef, presence };
 }

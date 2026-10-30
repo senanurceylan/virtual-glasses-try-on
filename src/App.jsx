@@ -1,8 +1,10 @@
 import { useMemo, useRef, useState } from 'react';
 import { CameraStage } from './components/CameraStage.jsx';
 import { PlacementPanel } from './components/PlacementPanel.jsx';
+import { StabilityPanel } from './components/StabilityPanel.jsx';
 import { StatusBar } from './components/StatusBar.jsx';
 import { TrackingPanel } from './components/TrackingPanel.jsx';
+import { DEFAULT_PARAMS } from './core/oneEuroFilter.js';
 import { PerfMonitor } from './core/perfMonitor.js';
 import { useCamera } from './hooks/useCamera.js';
 import { useFaceLandmarker } from './hooks/useFaceLandmarker.js';
@@ -36,12 +38,19 @@ export default function App() {
   const glassesCanvasRef = useRef(null);
   const threeCanvasRef = useRef(null);
   const [overlayStyle, setOverlayStyle] = useState(INITIAL_OVERLAY);
-  const [view, setView] = useState({ mode: '2d', showGlasses: true, showGeometry: false, showOccluders: false });
+  const [view, setView] = useState({
+    mode: '2d',
+    showGlasses: true,
+    showGeometry: false,
+    showOccluders: false,
+    stabilize: true,
+    filterParams: { ...DEFAULT_PARAMS },
+  });
   const scene3D = useGlassesScene(threeCanvasRef, view.mode === '3d');
   const { model: glassesModel, glasses } = useGlassesModel('classic-black');
   const running = camera.status === 'ready';
 
-  const { faceVisible, placementRef } = useFaceTracking({
+  const { faceVisible, placementRef, stabilityRef } = useFaceTracking({
     videoRef: camera.videoRef,
     overlayCanvasRef,
     glassesCanvasRef,
@@ -91,6 +100,7 @@ export default function App() {
             onViewChange={setView}
             scene3D={scene3D}
           />
+          <StabilityPanel placementRef={placementRef} stabilityRef={stabilityRef} view={view} onViewChange={setView} />
           <TrackingPanel
             model={model}
             faceVisible={faceVisible}
