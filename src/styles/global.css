@@ -257,6 +257,10 @@ p {
   font-size: 13px;
 }
 
+.kv-row {
+  display: contents;
+}
+
 .kv dt {
   color: var(--muted);
 }
@@ -290,6 +294,70 @@ p {
 
 .toggle input:disabled + span {
   color: var(--muted);
+}
+
+.subhead {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin: 16px 0 8px;
+}
+
+.glasses-current {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.glasses-current p {
+  margin-top: 2px;
+}
+
+.glasses-thumb {
+  width: 96px;
+  height: auto;
+  padding: 6px;
+  border-radius: 10px;
+  background: #e9e4dc;
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.segmented label {
+  padding: 6px 8px;
+  border-radius: 7px;
+  font-size: 13px;
+  text-align: center;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.segmented label.is-active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.segmented input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.error-text {
+  color: var(--danger);
+  font-size: 13px;
+  margin-bottom: 12px;
 }
 
 /* ---------- Düğmeler ---------- */

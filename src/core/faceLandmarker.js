@@ -30,7 +30,8 @@ export async function createFaceLandmarker(options = {}) {
       minFacePresenceConfidence: opts.minFacePresenceConfidence,
       minTrackingConfidence: opts.minTrackingConfidence,
       outputFaceBlendshapes: false,
-      outputFacialTransformationMatrixes: false,
+      // 3D mod için yüzün 4×4 dönüşüm matrisi (kafa pozu). 2D mod bunu kullanmaz.
+      outputFacialTransformationMatrixes: true,
     });
 
   try {
@@ -42,12 +43,17 @@ export async function createFaceLandmarker(options = {}) {
 }
 
 /**
- * Bir video karesinde yüz noktalarını tespit eder.
- * @returns {Array<Array<{x:number,y:number,z:number}>>} yüz başına nokta listesi (yüz yoksa boş dizi)
+ * Bir video karesinde yüz noktalarını ve kafa pozu matrisini tespit eder.
+ * @returns {{faces: Array<Array<{x,y,z}>>, matrices: Array<number[]>}}
+ *   faces    : yüz başına 478 nokta (yüz yoksa boş dizi)
+ *   matrices : yüz başına 16 elemanlı dönüşüm matrisi (sütun öncelikli / column-major)
  */
-export function detectFaces(landmarker, video, timestampMs) {
+export function detectFrame(landmarker, video, timestampMs) {
   const result = landmarker.detectForVideo(video, timestampMs);
-  return result.faceLandmarks ?? [];
+  return {
+    faces: result.faceLandmarks ?? [],
+    matrices: (result.facialTransformationMatrixes ?? []).map((m) => m.data),
+  };
 }
 
 /** Kontur tanımları (nokta çiftleri listesi) — çizimde kullanılır. */
@@ -61,3 +67,6 @@ export const FACE_CONTOURS = {
   rightIris: FaceLandmarker.FACE_LANDMARKS_RIGHT_IRIS,
   lips: FaceLandmarker.FACE_LANDMARKS_LIPS,
 };
+
+/** Yüz yüzeyi ağının kenarları (üçgenler bu kenarlardan çıkarılır, bkz. faceMesh.js). */
+export const FACE_TESSELATION = FaceLandmarker.FACE_LANDMARKS_TESSELATION;

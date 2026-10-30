@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Klasik siyah asetat çerçeve (wayfarer tarzı), ön görünüş.
+  Ölçek: 1 mm ≈ 8.57 px. Tuval 1200×420 px ≈ 140×49 mm.
+
+  Yerleştirme referansları (glassesCatalog.js ile aynı olmalı):
+    sol göz bebeği  (330, 200)
+    sağ göz bebeği  (870, 200)   → aradaki mesafe 540 px = 63 mm (ortalama göz bebeği mesafesi)
+  Cam merkezleri (300, 215) ve (900, 215); optik merkez camın biraz içinde ve üstünde.
+  Sağ yarı, sol yarının x = 600 eksenine göre aynası olarak çizilir.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="1200" height="420" viewBox="0 0 1200 420">
+  <defs>
+    <!-- Cam şekli (sol) -->
+    <path id="lens"
+          d="M 95 75 C 200 50, 400 45, 505 62 C 525 66, 528 90, 522 140
+             C 512 250, 480 345, 350 372 C 260 390, 150 375, 112 320
+             C 80 270, 75 160, 82 100 C 84 85, 88 78, 95 75 Z"/>
+
+    <!-- İki camın birleşimi: yansımalar her iki camda aynı yönde olsun diye ayrı kırpılır -->
+    <clipPath id="lensClip">
+      <use xlink:href="#lens"/>
+      <use xlink:href="#lens" transform="translate(1200 0) scale(-1 1)"/>
+    </clipPath>
+
+    <!-- Asetat: üstte hafif parlak, altta koyu -->
+    <linearGradient id="acetate" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a3a3e"/>
+      <stop offset="0.35" stop-color="#1c1c1f"/>
+      <stop offset="1" stop-color="#0a0a0b"/>
+    </linearGradient>
+
+    <!-- Cam: çok hafif mavi-gri renk, kenara doğru biraz koyulaşır -->
+    <radialGradient id="glass" cx="0.45" cy="0.4" r="0.75">
+      <stop offset="0" stop-color="#c8d8ea" stop-opacity="0.06"/>
+      <stop offset="1" stop-color="#7d93ad" stop-opacity="0.2"/>
+    </radialGradient>
+
+    <linearGradient id="metal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4f4f4"/>
+      <stop offset="1" stop-color="#8a8a8a"/>
+    </linearGradient>
+
+    <g id="half">
+      <!-- Cam dolgusu -->
+      <use xlink:href="#lens" fill="url(#glass)"/>
+
+      <!-- Menteşe çıkıntısı ve perçin -->
+      <path d="M 92 72 L 38 78 C 26 80, 24 112, 36 116 L 86 120 Z" fill="url(#acetate)"/>
+      <circle cx="58" cy="97" r="7" fill="url(#metal)"/>
+
+      <!-- Çerçeve (rim) -->
+      <use xlink:href="#lens" fill="none" stroke="url(#acetate)" stroke-width="30" stroke-linejoin="round"/>
+      <!-- Üst kenardaki parlama -->
+      <path d="M 110 66 C 210 44, 400 40, 500 55" fill="none" stroke="#ffffff" stroke-opacity="0.22"
+            stroke-width="4" stroke-linecap="round"/>
+      <!-- İç kenar çizgisi (camın kanala oturduğu yer) -->
+      <use xlink:href="#lens" fill="none" stroke="#000000" stroke-opacity="0.6" stroke-width="2"/>
+
+      <!-- Burun pedi -->
+      <ellipse cx="536" cy="255" rx="11" ry="27" transform="rotate(18 536 255)"
+               fill="#ffffff" fill-opacity="0.18" stroke="#dcdcdc" stroke-opacity="0.45" stroke-width="2"/>
+    </g>
+  </defs>
+
+  <use xlink:href="#half"/>
+  <use xlink:href="#half" transform="translate(1200 0) scale(-1 1)"/>
+
+  <!-- Yansıma bantları (iki camda da aynı yönde) -->
+  <g clip-path="url(#lensClip)">
+    <path d="M 150 40 L 260 40 L 90 400 L -20 400 Z" fill="#ffffff" fill-opacity="0.10"/>
+    <path d="M 290 40 L 330 40 L 160 400 L 120 400 Z" fill="#ffffff" fill-opacity="0.06"/>
+    <path d="M 750 40 L 860 40 L 690 400 L 580 400 Z" fill="#ffffff" fill-opacity="0.10"/>
+    <path d="M 890 40 L 930 40 L 760 400 L 720 400 Z" fill="#ffffff" fill-opacity="0.06"/>
+  </g>
+
+  <!-- Köprü -->
+  <path d="M 500 84 C 555 58, 645 58, 700 84" fill="none" stroke="url(#acetate)" stroke-width="30"
+        stroke-linecap="round"/>
+  <path d="M 512 72 C 560 50, 640 50, 688 72" fill="none" stroke="#ffffff" stroke-opacity="0.2"
+        stroke-width="3" stroke-linecap="round"/>
+</svg>

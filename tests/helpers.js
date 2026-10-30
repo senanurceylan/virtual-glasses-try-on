@@ -24,5 +24,9 @@ export function mockContext(width = 1280, height = 720) {
     save: record('save'),
     restore: record('restore'),
     setLineDash: record('setLineDash'),
+    setTransform: record('setTransform'),
+    drawImage: record('drawImage'),
+    arc: record('arc'),
+    fill: record('fill'),
   };
 }

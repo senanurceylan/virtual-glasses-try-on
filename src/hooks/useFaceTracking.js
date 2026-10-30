@@ -1,41 +1,91 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { detectFaces, FACE_CONTOURS } from '../core/faceLandmarker.js';
+import { eyeCenters, eyeMetrics, glassesTransform } from '../core/eyeGeometry.js';
+import { detectFrame, FACE_CONTOURS } from '../core/faceLandmarker.js';
 import { FacePresence } from '../core/facePresence.js';
+import { computeHeadPose } from '../core/headPose.js';
 import { createMonotonicClock } from '../core/landmarkUtils.js';
+import { drawGlasses, drawPlacementGeometry } from '../render/glassesRenderer.js';
 import { drawLandmarkOverlay, syncCanvasSize } from '../render/landmarkOverlay.js';
 import { useFrameLoop } from './useFrameLoop.js';
 
 /**
  * Kare başına işlem hattı:
- *   video karesi → [Tespit] MediaPipe 478 nokta → [Çizim] canvas → yüz var/yok durumu
+ *   video karesi
+ *     → [Tespit]       MediaPipe: 478 yüz noktası + 4×4 kafa pozu matrisi
+ *     → [Yerleştirme]  2D: göz merkezleri, mesafe, açı → afin matris
+ *                      3D: matristen dönme (yaw/pitch/roll) + landmark'tan konum/ölçek
+ *     → [Çizim]        2D gözlük canvas'ı ya da nokta/geometri katmanı
+ *     → [3D çizim]     Three.js (yalnızca 3D modda)
+ *     → yüz var/yok durumu
  *
- * Her adımın süresi PerfMonitor'a "Tespit" ve "Çizim" adıyla kaydedilir.
- * React state yalnızca yüz görünürlüğü değiştiğinde güncellenir.
- * En son tespit edilen yüz `lastFaceRef` ile sonraki aşamalara açılır.
+ * React state yalnızca yüz görünürlüğü değiştiğinde güncellenir; son yerleştirme
+ * verisi `placementRef` ile paneller tarafından periyodik okunur.
+ *
+ * options: { mode: '2d'|'3d', overlay, showGlasses, showGeometry, showOccluders,
+ *            glasses: {image, anchors} | null }
  */
-export function useFaceTracking({ videoRef, canvasRef, landmarkerRef, perf, enabled, style }) {
+export function useFaceTracking({
+  videoRef,
+  overlayCanvasRef,
+  glassesCanvasRef,
+  sceneRef,
+  landmarkerRef,
+  perf,
+  enabled,
+  options,
+}) {
   const clock = useMemo(() => createMonotonicClock(), []);
   const presence = useMemo(() => new FacePresence(), []);
   const [faceVisible, setFaceVisible] = useState(false);
   const visibleRef = useRef(false);
-  const lastFaceRef = useRef(null);
-  const ctxRef = useRef(null);
-  const styleRef = useRef(style);
-  styleRef.current = style;
+  const placementRef = useRef(null); // { metrics, transform, pose, width, height }
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
 
   useFrameLoop(videoRef, perf, enabled, (video, now) => {
     const landmarker = landmarkerRef.current;
-    const canvas = canvasRef.current;
-    if (!landmarker || !canvas || !video.videoWidth) return;
+    const overlayCanvas = overlayCanvasRef.current;
+    const glassesCanvas = glassesCanvasRef.current;
+    if (!landmarker || !overlayCanvas || !glassesCanvas || !video.videoWidth) return;
 
-    if (!ctxRef.current) ctxRef.current = canvas.getContext('2d');
-    syncCanvasSize(canvas, video.videoWidth, video.videoHeight);
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+    syncCanvasSize(overlayCanvas, width, height);
+    syncCanvasSize(glassesCanvas, width, height);
+    const opts = optionsRef.current;
+    const scene = opts.mode === '3d' ? sceneRef.current : null;
 
-    const faces = perf.measure('Tespit', () => detectFaces(landmarker, video, clock(now)));
+    const { faces, matrices } = perf.measure('Tespit', () => detectFrame(landmarker, video, clock(now)));
     const face = faces[0] ?? null;
-    lastFaceRef.current = face;
+    const matrix = matrices[0] ?? null;
 
-    perf.measure('Çizim', () => drawLandmarkOverlay(ctxRef.current, face, FACE_CONTOURS, styleRef.current));
+    const placement = perf.measure('Yerleştirme', () => {
+      if (!face) return null;
+      const metrics = eyeMetrics(eyeCenters(face, width, height));
+      const transform = !scene && opts.glasses ? glassesTransform(metrics, opts.glasses.anchors) : null;
+      const pose = matrix ? computeHeadPose(face, matrix, width, height) : null;
+      return { metrics, transform, pose, width, height };
+    });
+    placementRef.current = placement;
+
+    perf.measure('Çizim', () => {
+      // 2D gözlük yalnızca 2D modda; 3D modda bu katman boş kalır.
+      const transform2D = opts.showGlasses && !scene ? placement?.transform : null;
+      drawGlasses(glassesCanvas.getContext('2d'), opts.glasses?.image, transform2D);
+
+      const octx = overlayCanvas.getContext('2d');
+      drawLandmarkOverlay(octx, face, FACE_CONTOURS, opts.overlay);
+      if (opts.showGeometry && placement) drawPlacementGeometry(octx, placement.metrics);
+    });
+
+    if (scene) {
+      perf.measure('3D çizim', () => {
+        scene.setSize(width, height);
+        scene.setOccluderDebug(Boolean(opts.showOccluders));
+        scene.update(face, opts.showGlasses ? placement?.pose : null);
+        scene.render();
+      });
+    }
 
     const visible = presence.update(face !== null);
     if (visible !== visibleRef.current) {
@@ -44,16 +94,24 @@ export function useFaceTracking({ videoRef, canvasRef, landmarkerRef, perf, enab
     }
   });
 
-  // Döngü durunca (kamera kapandı vb.) eski çizimi ve durumu temizle.
+  // 3D moddan çıkınca 3D canvas'ı temizle (2D gözlük bir sonraki karede çizilir).
+  const mode = options.mode;
+  useEffect(() => {
+    if (mode !== '3d') sceneRef.current?.clear();
+  }, [mode, sceneRef]);
+
+  // Döngü durunca (kamera kapandı vb.) eski çizimleri ve durumu temizle.
   useEffect(() => {
     if (enabled) return;
-    const canvas = canvasRef.current;
-    canvas?.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+    for (const canvas of [overlayCanvasRef.current, glassesCanvasRef.current]) {
+      canvas?.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+    }
+    sceneRef.current?.clear();
     presence.reset();
-    lastFaceRef.current = null;
+    placementRef.current = null;
     visibleRef.current = false;
     setFaceVisible(false);
-  }, [enabled, canvasRef, presence]);
+  }, [enabled, overlayCanvasRef, glassesCanvasRef, sceneRef, presence]);
 
-  return { faceVisible, lastFaceRef, presence };
+  return { faceVisible, placementRef, presence };
 }

@@ -1,12 +1,18 @@
 import { useMemo, useRef, useState } from 'react';
 import { CameraStage } from './components/CameraStage.jsx';
+import { PlacementPanel } from './components/PlacementPanel.jsx';
 import { StatusBar } from './components/StatusBar.jsx';
 import { TrackingPanel } from './components/TrackingPanel.jsx';
 import { PerfMonitor } from './core/perfMonitor.js';
 import { useCamera } from './hooks/useCamera.js';
 import { useFaceLandmarker } from './hooks/useFaceLandmarker.js';
 import { useFaceTracking } from './hooks/useFaceTracking.js';
+import { useGlassesModel } from './hooks/useGlassesModel.js';
+import { useGlassesScene } from './hooks/useGlassesScene.js';
 import { DEFAULT_STYLE } from './render/landmarkOverlay.js';
+
+// Gözlük denerken yüz noktaları varsayılan olarak kapalı; panelden açılabilir.
+const INITIAL_OVERLAY = { ...DEFAULT_STYLE, showPoints: false, showContours: false, showBox: false };
 
 /** Sahnenin üstünde gösterilecek uyarıyı seçer (yoksa null). */
 function stageNotice(model, faceVisible) {
@@ -26,17 +32,24 @@ export default function App() {
   const camera = useCamera();
   const model = useFaceLandmarker();
   const perf = useMemo(() => new PerfMonitor({ windowSize: 60 }), []);
-  const canvasRef = useRef(null);
-  const [overlayStyle, setOverlayStyle] = useState(DEFAULT_STYLE);
+  const overlayCanvasRef = useRef(null);
+  const glassesCanvasRef = useRef(null);
+  const threeCanvasRef = useRef(null);
+  const [overlayStyle, setOverlayStyle] = useState(INITIAL_OVERLAY);
+  const [view, setView] = useState({ mode: '2d', showGlasses: true, showGeometry: false, showOccluders: false });
+  const scene3D = useGlassesScene(threeCanvasRef, view.mode === '3d');
+  const { model: glassesModel, glasses } = useGlassesModel('classic-black');
   const running = camera.status === 'ready';
 
-  const { faceVisible } = useFaceTracking({
+  const { faceVisible, placementRef } = useFaceTracking({
     videoRef: camera.videoRef,
-    canvasRef,
+    overlayCanvasRef,
+    glassesCanvasRef,
+    sceneRef: scene3D.sceneRef,
     landmarkerRef: model.landmarkerRef,
     perf,
     enabled: running && model.status === 'ready',
-    style: overlayStyle,
+    options: { overlay: overlayStyle, glasses, ...view },
   });
 
   return (
@@ -65,10 +78,19 @@ export default function App() {
           onRetry={camera.start}
           notice={stageNotice(model, faceVisible)}
         >
-          <canvas ref={canvasRef} className="stage-canvas" />
+          <canvas ref={glassesCanvasRef} className="stage-canvas" />
+          <canvas ref={threeCanvasRef} className="stage-canvas" />
+          <canvas ref={overlayCanvasRef} className="stage-canvas" />
         </CameraStage>
 
         <aside className="side-panel">
+          <PlacementPanel
+            placementRef={placementRef}
+            glasses={glassesModel}
+            view={view}
+            onViewChange={setView}
+            scene3D={scene3D}
+          />
           <TrackingPanel
             model={model}
             faceVisible={faceVisible}
@@ -76,10 +98,6 @@ export default function App() {
             style={overlayStyle}
             onStyleChange={setOverlayStyle}
           />
-          <section className="card">
-            <h2>Gözlükler</h2>
-            <p className="muted">Gözlük modelleri Aşama 2'de eklenecek.</p>
-          </section>
           <section className="card">
             <h2>Yüz şekli</h2>
             <p className="muted">Yüz şekli tahmini Aşama 5'te eklenecek.</p>
