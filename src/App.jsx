@@ -1,9 +1,11 @@
 import { useMemo, useRef, useState } from 'react';
 import { CameraStage } from './components/CameraStage.jsx';
+import { FaceShapePanel } from './components/FaceShapePanel.jsx';
 import { PlacementPanel } from './components/PlacementPanel.jsx';
 import { StabilityPanel } from './components/StabilityPanel.jsx';
 import { StatusBar } from './components/StatusBar.jsx';
 import { TrackingPanel } from './components/TrackingPanel.jsx';
+import { DEFAULT_FRAME_ID } from './core/frameStyles.js';
 import { DEFAULT_PARAMS } from './core/oneEuroFilter.js';
 import { PerfMonitor } from './core/perfMonitor.js';
 import { useCamera } from './hooks/useCamera.js';
@@ -47,10 +49,11 @@ export default function App() {
     filterParams: { ...DEFAULT_PARAMS },
   });
   const scene3D = useGlassesScene(threeCanvasRef, view.mode === '3d');
-  const { model: glassesModel, glasses } = useGlassesModel('classic-black');
+  const [glassesId, setGlassesId] = useState(DEFAULT_FRAME_ID);
+  const { model: glassesModel, glasses } = useGlassesModel(glassesId);
   const running = camera.status === 'ready';
 
-  const { faceVisible, placementRef, stabilityRef } = useFaceTracking({
+  const { faceVisible, placementRef, stabilityRef, faceShapeRef } = useFaceTracking({
     videoRef: camera.videoRef,
     overlayCanvasRef,
     glassesCanvasRef,
@@ -93,6 +96,7 @@ export default function App() {
         </CameraStage>
 
         <aside className="side-panel">
+          <FaceShapePanel faceShapeRef={faceShapeRef} selectedId={glassesId} onSelect={setGlassesId} />
           <PlacementPanel
             placementRef={placementRef}
             glasses={glassesModel}
@@ -108,10 +112,6 @@ export default function App() {
             style={overlayStyle}
             onStyleChange={setOverlayStyle}
           />
-          <section className="card">
-            <h2>Yüz şekli</h2>
-            <p className="muted">Yüz şekli tahmini Aşama 5'te eklenecek.</p>
-          </section>
         </aside>
       </main>
 

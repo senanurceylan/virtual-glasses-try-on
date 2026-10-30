@@ -1,10 +1,11 @@
-// Kodla üretilen 3D gözlük modeli (klasik siyah asetat, wayfarer tarzı).
+// Kodla üretilen 3D gözlük modeli. Cam şekli, ölçüler ve malzeme çerçeve modelinden
+// (core/frameStyles.js) gelir; varsayılan model klasik siyah wayfarer'dır.
 //
 // Birim: santimetre. Yerel eksenler (kafaya göre):
 //   x → kişinin soluna,  y → yukarı,  z → ileri (yüzün baktığı yön, kameraya doğru)
 //   Orijin: iki göz merkezinin orta noktası.
-// Ölçüler 2D modelle (assets/glasses/classic-black.svg) aynıdır:
-//   göz bebekleri arası 6.3, cam 5.2 × 4.0, köprü 1.8, cam düzlemi gözün 1.2 cm önünde.
+// Ölçüler 2D görsellerle aynıdır (aynı frameStyles tanımından üretilir):
+//   göz bebekleri arası 6.3, wayfarer camı 5.2 × 4.0, köprü 1.8, cam düzlemi gözün 1.2 cm önünde.
 //
 // Model iki gruba ayrılır (occlusion için, bkz. GlassesScene):
 //   front   : çerçeve, camlar, köprü, menteşeler, burun pedleri → her zaman yüzün önünde
@@ -27,6 +28,7 @@ import {
   Vector3,
   BoxGeometry,
 } from 'three';
+import { DEFAULT_FRAME_ID, frameAttachments, frameLayout, frameStyle, placedLens } from '../../core/frameStyles.js';
 
 export const DIMENSIONS = {
   lensWidth: 5.2,
@@ -40,26 +42,13 @@ export const DIMENSIONS = {
   templeLength: 11.5,
 };
 
-const lensCenterX = (DIMENSIONS.lensWidth + DIMENSIONS.bridge) / 2; // 3.5
-
 /**
- * Cam dış hattı: süperelips (köşeleri yuvarlatılmış dikdörtgen),
- * üst kenar biraz daha geniş (wayfarer). Merkez (0,0), saat yönü tersine.
+ * Cam dış hattı (merkez (0,0), saat yönü tersine). Varsayılan: wayfarer —
+ * süperelips (köşeleri yuvarlatılmış dikdörtgen), üst kenar biraz daha geniş.
  */
-export function lensOutline(segments = 72) {
-  const a = DIMENSIONS.lensWidth / 2;
-  const b = DIMENSIONS.lensHeight / 2;
-  const p = 2.8;
-  const pts = [];
-  for (let i = 0; i < segments; i++) {
-    const t = (i / segments) * Math.PI * 2;
-    const c = Math.cos(t);
-    const s = Math.sin(t);
-    const y = b * Math.sign(s) * Math.abs(s) ** (2 / p);
-    const x = a * Math.sign(c) * Math.abs(c) ** (2 / p) * (1 + 0.07 * (y / b));
-    pts.push(new Vector2(x, y));
-  }
-  return pts;
+export function lensOutline(segments = 72, style = frameStyle(DEFAULT_FRAME_ID)) {
+  const { centerX, centerY } = frameLayout(style);
+  return placedLens(style, 1, segments).map((p) => new Vector2(p.x - centerX, p.y - centerY));
 }
 
 /** Kapalı çokgeni dışa doğru `d` kadar kaydırır (her noktayı komşu kenarların normali boyunca). */
@@ -76,15 +65,19 @@ export function offsetOutline(points, d) {
   });
 }
 
-export function createMaterials() {
+export function createMaterials(style = frameStyle(DEFAULT_FRAME_ID)) {
+  const frame =
+    style.rim.material === 'metal'
+      ? new MeshStandardMaterial({ color: style.rim.color, metalness: 1, roughness: 0.22 })
+      : new MeshPhysicalMaterial({
+          color: style.rim.color,
+          roughness: 0.3,
+          metalness: 0,
+          clearcoat: 1,
+          clearcoatRoughness: 0.08,
+        });
   return {
-    acetate: new MeshPhysicalMaterial({
-      color: 0x111113,
-      roughness: 0.3,
-      metalness: 0,
-      clearcoat: 1,
-      clearcoatRoughness: 0.08,
-    }),
+    acetate: frame, // çerçeve malzemesi (metal modellerde metal)
     lens: new MeshPhysicalMaterial({
       color: 0xd2deea,
       roughness: 0.02,
@@ -100,55 +93,72 @@ export function createMaterials() {
   };
 }
 
-function buildRim(materials, side) {
-  const inner = lensOutline();
-  const outer = offsetOutline(inner, DIMENSIONS.rimWidth);
+const toVec2 = (pts) => pts.map((p) => new Vector2(p.x, p.y));
+
+function buildRim(style, materials, side) {
+  const inner = toVec2(placedLens(style, side));
+  const outer = offsetOutline(inner, style.rim.width);
   const shape = new Shape(outer);
   shape.holes.push(new Path(inner));
+  const bevel = Math.min(0.07, style.rim.width / 3);
   const geo = new ExtrudeGeometry(shape, {
-    depth: DIMENSIONS.rimDepth,
+    depth: style.rim.depth,
     bevelEnabled: true,
-    bevelThickness: 0.07,
-    bevelSize: 0.06,
+    bevelThickness: bevel,
+    bevelSize: bevel * 0.85,
     bevelSegments: 3,
     curveSegments: 4,
   });
-  geo.translate(side * lensCenterX, DIMENSIONS.lensCenterY, DIMENSIONS.lensZ - DIMENSIONS.rimDepth / 2);
+  geo.translate(0, 0, DIMENSIONS.lensZ - style.rim.depth / 2);
   const mesh = new Mesh(geo, materials.acetate);
   mesh.name = side < 0 ? 'rim-right' : 'rim-left';
   return mesh;
 }
 
-function buildLens(materials, side) {
-  const geo = new ShapeGeometry(new Shape(offsetOutline(lensOutline(), 0.05)));
-  geo.translate(side * lensCenterX, DIMENSIONS.lensCenterY, DIMENSIONS.lensZ);
+function buildLens(style, materials, side) {
+  const geo = new ShapeGeometry(new Shape(offsetOutline(toVec2(placedLens(style, side)), 0.05)));
+  geo.translate(0, 0, DIMENSIONS.lensZ);
   const mesh = new Mesh(geo, materials.lens);
   mesh.name = side < 0 ? 'lens-right' : 'lens-left';
   mesh.renderOrder = 1; // saydam camlar çerçeveden sonra
   return mesh;
 }
 
-function buildBridge(materials) {
+/** Köprü: iki camın iç üst kenarları arasında hafif kavisli çubuk (aviator'da çift). */
+function buildBridge(style, materials) {
+  const { bridgeY } = frameLayout(style);
   const z = DIMENSIONS.lensZ + 0.05;
-  const curve = new CatmullRomCurve3([
-    new Vector3(-1.05, 1.25, z),
-    new Vector3(-0.5, 1.6, z + 0.08),
-    new Vector3(0, 1.7, z + 0.1),
-    new Vector3(0.5, 1.6, z + 0.08),
-    new Vector3(1.05, 1.25, z),
-  ]);
-  const mesh = new Mesh(new TubeGeometry(curve, 24, 0.19, 10, false), materials.acetate);
-  mesh.name = 'bridge';
-  return mesh;
+  const half = frameAttachments(style).bridgeX;
+  const radius = style.rim.material === 'metal' ? 0.07 : 0.19;
+  const bar = (y, rise, name) => {
+    const curve = new CatmullRomCurve3([
+      new Vector3(-half, y, z),
+      new Vector3(-half * 0.5, y + rise * 0.8, z + 0.08),
+      new Vector3(0, y + rise, z + 0.1),
+      new Vector3(half * 0.5, y + rise * 0.8, z + 0.08),
+      new Vector3(half, y, z),
+    ]);
+    const mesh = new Mesh(new TubeGeometry(curve, 24, radius, 10, false), materials.acetate);
+    mesh.name = name;
+    return mesh;
+  };
+  const group = new Group();
+  group.name = 'bridge';
+  group.add(bar(bridgeY, 0.45, 'bridge-main'));
+  if (style.doubleBridge) group.add(bar(bridgeY + style.lens.height * 0.32, 0.05, 'bridge-top'));
+  return group;
 }
 
-function buildHinge(materials, side) {
+function buildHinge(style, materials, side) {
+  const { hingeY } = frameLayout(style);
+  const { hingeX } = frameAttachments(style);
   const group = new Group();
   group.name = side < 0 ? 'hinge-right' : 'hinge-left';
-  const block = new Mesh(new BoxGeometry(0.7, 0.85, 0.7), materials.acetate);
-  block.position.set(side * 6.25, 1.05, DIMENSIONS.lensZ - 0.15);
+  const size = style.rim.material === 'metal' ? 0.35 : 0.7;
+  const block = new Mesh(new BoxGeometry(size, size * 1.2, 0.7), materials.acetate);
+  block.position.set(side * (hingeX + size / 2 - 0.15), hingeY, DIMENSIONS.lensZ - 0.15);
   const rivet = new Mesh(new SphereGeometry(0.09, 12, 8), materials.metal);
-  rivet.position.set(side * 6.25, 1.05, DIMENSIONS.lensZ + 0.21);
+  rivet.position.set(side * (hingeX + size / 2 - 0.15), hingeY, DIMENSIONS.lensZ - 0.15 + 0.36);
   group.add(block, rivet);
   return group;
 }
@@ -163,10 +173,12 @@ function buildNosePad(materials, side) {
 }
 
 /** Sap yolu: menteşeden kafanın yanı boyunca kulağa, sonra kulağın arkasında aşağı kıvrılır. */
-export function templePath(side) {
+export function templePath(side, style = frameStyle(DEFAULT_FRAME_ID)) {
   const x = DIMENSIONS.templeX;
+  const { hingeY } = frameLayout(style);
+  const { hingeX } = frameAttachments(style);
   return new CatmullRomCurve3([
-    new Vector3(side * 6.55, 1.05, DIMENSIONS.lensZ - 0.3),
+    new Vector3(side * Math.max(hingeX + 0.3, 6.4), hingeY, DIMENSIONS.lensZ - 0.3),
     new Vector3(side * 6.95, 1.0, -2),
     new Vector3(side * x, 0.95, -6),
     new Vector3(side * x, 0.8, -9),
@@ -175,8 +187,9 @@ export function templePath(side) {
   ]);
 }
 
-function buildTemple(materials, side) {
-  const mesh = new Mesh(new TubeGeometry(templePath(side), 48, 0.17, 8, false), materials.acetate);
+function buildTemple(style, materials, side) {
+  const radius = style.rim.material === 'metal' ? 0.08 : 0.17;
+  const mesh = new Mesh(new TubeGeometry(templePath(side, style), 48, radius, 8, false), materials.acetate);
   mesh.name = side < 0 ? 'temple-right' : 'temple-left';
   return mesh;
 }
@@ -184,19 +197,25 @@ function buildTemple(materials, side) {
 /**
  * Gözlük modelini oluşturur.
  * side = −1: kişinin sağı (−x), side = +1: kişinin solu (+x)
+ * @param style  frameStyles.js'teki çerçeve modeli
  * @returns {{ front: Group, temples: Group, materials }}
  */
-export function buildGlassesModel(materials = createMaterials()) {
+export function buildGlassesModel(style = frameStyle(DEFAULT_FRAME_ID), materials = createMaterials(style)) {
   const front = new Group();
   front.name = 'glasses-front';
   const temples = new Group();
   temples.name = 'glasses-temples';
 
   for (const side of [-1, 1]) {
-    front.add(buildRim(materials, side), buildLens(materials, side), buildHinge(materials, side), buildNosePad(materials, side));
-    temples.add(buildTemple(materials, side));
+    front.add(
+      buildRim(style, materials, side),
+      buildLens(style, materials, side),
+      buildHinge(style, materials, side),
+      buildNosePad(materials, side),
+    );
+    temples.add(buildTemple(style, materials, side));
   }
-  front.add(buildBridge(materials));
+  front.add(buildBridge(style, materials));
 
   return { front, temples, materials };
 }

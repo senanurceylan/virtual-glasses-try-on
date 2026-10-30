@@ -28,7 +28,7 @@ macOS ilk seferde tarayıcı için kamera izni isteyebilir
 | `npm test` | Birim testleri (Vitest) |
 | `npm run build` | Üretim derlemesi (`dist/`) |
 | `npm run bench:filter` | One Euro filtresi ölçüm tablosu (titreme azalması, gecikme; 15/30/60 FPS) |
-| `npm run glasses` | `assets/glasses/*.svg` → `public/glasses/*.png` gözlük görsellerini üretir |
+| `npm run glasses` | Parametrik çerçevelerden SVG üretir, tüm SVG'leri `public/glasses/*.png`'ye çevirir |
 
 ## Klasör yapısı
 
@@ -41,7 +41,7 @@ src/
   styles/      CSS
 tests/         Vitest birim testleri
 scripts/       Yardımcı scriptler (model indirme, WASM kopyalama, gözlük PNG üretimi)
-assets/        Gözlük görsellerinin SVG kaynakları
+assets/        Gözlük görsellerinin SVG kaynakları (classic-black elle çizildi, diğerleri üretilir)
 ```
 
 ## Görünüm modları
@@ -110,14 +110,69 @@ Simülasyon sonuçları (`npm run bench:filter`, σ = 1 px gürültü, 1 IPD = 1
 
 Karşılaştırma: düz alçak geçiren filtre (`beta = 0`) aynı harekette 159 ms geride kalır ve sıçramaya 383–467 ms'de ulaşır. Hiçbir senaryoda aşma (overshoot) olmaz.
 
+## Yüz şekli analizi ve gözlük önerileri
+
+> Sonuç kesin bir yüz şekli teşhisi değil, yüz noktalarından hesaplanan **yaklaşık geometrik bir tahmindir**. Öneriler estetik eğilimlerdir, kural değildir.
+
+### Ölçümler (`src/core/faceShape.js`)
+
+| Ölçüm | Noktalar | Not |
+|---|---|---|
+| Alın genişliği | 54 ↔ 284 | kaş üstü, alnın iki yanı |
+| Elmacık genişliği | 234 ↔ 454 | yüzün en geniş yeri, normalizasyon birimi |
+| Çene genişliği | 172 ↔ 397 | çene köşeleri |
+| Çene ucu genişliği | 149 ↔ 378 | çenenin sivriliği |
+| Yüz uzunluğu | 10 ↔ 152 | yüz ağının üst sınırı → çene ucu (saç çizgisi değil) |
+| Çene köşesi açısı | 234 – 172 – 152 | iki yanın ortalaması, küçük açı = köşeli |
+
+Genişlikler 3D mesafedir (x, y piksel; z·genişlik), bu yüzden kafanın küçük dönmelerinden az etkilenir. Hepsi elmacık genişliğine bölünür, böylece ölçekten bağımsız beş oran elde edilir:
+`L = uzunluk/elmacık`, `F = alın/elmacık`, `J = çene/elmacık`, `C = çene ucu/elmacık`, `A = çene açısı`.
+
+### Sınıflandırma
+
+Her şekil bir prototip oran vektörüdür. Uzaklık `d² = Σ((oran − prototip)/σ)²`, olasılık `exp(−d²/2)`'nin normalize edilmiş halidir. Referans "ortalama yüz" olarak MediaPipe model dosyasındaki kanonik yüz ağı kullanılır (L 1.153, F 0.819, J 0.775, C 0.419, A 132°). Prototipler bu ortalamadan şu yönlerde kaydırıldı:
+
+| Şekil | L | F | J | C | A |
+|---|---|---|---|---|---|
+| Oval | 1.20 | 0.82 | 0.76 | 0.41 | 134° |
+| Yuvarlak | 1.05 | 0.81 | 0.80 | 0.43 | 140° |
+| Kare | 1.07 | 0.84 | 0.85 | 0.47 | 127° |
+| Kalp | 1.15 | 0.87 | 0.72 | 0.37 | 133° |
+| Uzun | 1.32 | 0.81 | 0.78 | 0.42 | 132° |
+| Elmas | 1.17 | 0.75 | 0.71 | 0.38 | 136° |
+
+σ: L 0.05, F/J/C 0.03, A 5°. En yüksek olasılık %60'ın altındaysa ya da ikinci şekle farkı %30'dan azsa sonuç "iki şekil arasında" diye gösterilir.
+
+### Güvenilirlik kontrolleri (`src/core/faceShapeEstimator.js`)
+
+Bir kare ölçüme ancak şu koşullarla eklenir: |yaw| ≤ 12°, |pitch| ≤ 12°, |roll| ≤ 15°; elmacık genişliği ≥ 110 px; yüz kadrajda; ağız kapalı; oranlar makul aralıkta; alın görünür. Tahmin için en az 30 geçerli kare gerekir. Son 60 karenin **medyanı** alınır. Örnekler arası yayılım (MAD) eşiği aşarsa "kararsız" denir ve tahmin verilmez.
+
+**Alın kontrolü** (`src/core/skinCheck.js`): MediaPipe alın noktalarını saç altında da tahmin eder. Bu yüzden her 10 karede bir yanak ve alın noktalarının çevresindeki pikseller okunur ve YCrCb uzayına çevrilir. Yanaktan ten rengi modeli (Cr, Cb ortalama ± 2.5σ) çıkarılır. Alın piksellerinin %60'ından azı bu modele uyuyorsa alın kapalı sayılır.
+
+### Öneri puanı (`src/core/recommendations.js`)
+
+Yüz oranlarından dört tanımlayıcı (uzunluk, köşelilik, üst ağırlık, elmacık baskınlığı) ve her çerçevenin nitelikleri (köşelilik, cam derinliği, üst/alt ağırlık) çarpılarak "denge ve karşıtlık" kuralları uygulanır. Puan `50 + 18·Σ katkı` (0–100) olarak hesaplanır. Her kuralın katkısı kartta gerekçe olarak gösterilir. Ortalama yüzde tüm çerçeveler 50 puan alır.
+
+### Çerçeveler
+
+Altı model var: Wayfarer, Yuvarlak, Kare, Dikdörtgen, Aviator, Cat-eye. Hepsi `src/core/frameStyles.js`'teki tek bir parametrik tanımdan (süperelips cam hattı + değiştiriciler) üretilir. Bu tanım `npm run glasses` ile 2D PNG'ye, Three.js ile 3D modele dönüşür. Bu yüzden her model iki modda da aynı ölçülerle denenebilir.
+
+### Sınırlamalar
+
+- Prototip eşikleri gerçek yüz verisiyle **kalibre edilmedi**. Sentetik testler algoritmanın tutarlılığını doğrular, gerçek yüzlerde doğruluğu kanıtlamaz.
+- Yüz uzunluğu saç çizgisinden değil yüz ağının üst sınırından ölçülür. Alnı yüksek ya da kısa kişilerde L sapabilir.
+- Çene hattı sakal veya gölgede MediaPipe tahminine dayanır.
+- Ten kontrolü renk tabanlıdır: tene yakın renkte saç, güçlü renkli ışık veya makyaj yanıltabilir.
+- Kamera lensi (geniş açı, yakın mesafe) yüz oranlarını perspektifle bozabilir. 50 cm civarı mesafe önerilir.
+
 ## Aşamalar
 
 - [x] **Aşama 0:** Kurulum, kamera, performans ölçüm altyapısı
 - [x] **Aşama 1:** Yüz noktası tespiti (478 nokta, canvas çizimi, yüz yok uyarısı)
 - [x] **Aşama 2:** 2D gözlük yerleştirme (göz merkezleri, mesafe, eğim açısı, afin dönüşüm)
 - [x] **Aşama 3:** 3D gözlük (Three.js): kafa pozu matrisi, 3D model, occlusion, 2D/3D geçişi
-- [ ] **Aşama 4:** Stabilizasyon (One Euro filtresi): kod ve testler hazır, kamera testi bekleniyor
-- [ ] Aşama 5: Yüz şekli tahmini ve öneriler
+- [x] **Aşama 4:** Stabilizasyon (One Euro filtresi): titreme azaltma, ham/filtreli karşılaştırma paneli (tamamlandı)
+- [x] **Aşama 5:** Yüz şekli tahmini ve gözlük önerileri: oranlar, çok kareli tahmin, güvenilirlik kontrolleri, 6 çerçeve (tamamlandı)
 - [ ] Aşama 6: Arayüz geliştirmeleri
 - [ ] Aşama 7: Algoritma gösterim modu
 - [ ] Aşama 8: Test ve rapor

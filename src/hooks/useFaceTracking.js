@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { detectFrame, FACE_CONTOURS } from '../core/faceLandmarker.js';
 import { FacePresence } from '../core/facePresence.js';
+import { FaceShapeEstimator } from '../core/faceShapeEstimator.js';
 import { createMonotonicClock } from '../core/landmarkUtils.js';
 import { computePlacement } from '../core/placementPipeline.js';
 import { StabilityMonitor } from '../core/stabilityMonitor.js';
+import { CHEEK_POINTS, FOREHEAD_POINTS, skinCoverage } from '../core/skinCheck.js';
 import { PlacementStabilizer } from '../core/stabilizer.js';
 import { drawGlasses, drawPlacementGeometry } from '../render/glassesRenderer.js';
 import { drawLandmarkOverlay, syncCanvasSize } from '../render/landmarkOverlay.js';
+import { createPixelSampler } from '../render/pixelSampler.js';
 import { useFrameLoop } from './useFrameLoop.js';
 
 /**
@@ -18,11 +21,12 @@ import { useFrameLoop } from './useFrameLoop.js';
  *                      → 2D afin matris / 3D poz (ikisi de filtrelenmiş ölçümden)
  *     → [Çizim]        2D gözlük canvas'ı ya da nokta/geometri katmanı
  *     → [3D çizim]     Three.js (yalnızca 3D modda)
+ *     → [Yüz şekli]    oranlar + çok kareli tahmin (her 10 karede bir alın ten kontrolü)
  *     → yüz var/yok durumu
  *
  * React state yalnızca yüz görünürlüğü değiştiğinde güncellenir; son yerleştirme
- * verisi `placementRef`, ham/filtreli titreme ölçümü `stabilityRef` ile paneller
- * tarafından periyodik okunur.
+ * verisi `placementRef`, ham/filtreli titreme ölçümü `stabilityRef`, yüz şekli durumu
+ * `faceShapeRef` ile paneller tarafından periyodik okunur.
  *
  * options: { mode: '2d'|'3d', overlay, showGlasses, showGeometry, showOccluders,
  *            stabilize, filterParams: {minCutoff, beta, dCutoff},
@@ -44,6 +48,10 @@ export function useFaceTracking({
   const visibleRef = useRef(false);
   const stabilizer = useMemo(() => new PlacementStabilizer(), []);
   const stability = useMemo(() => new StabilityMonitor(), []);
+  const faceShape = useMemo(() => new FaceShapeEstimator(), []);
+  const faceShapeRef = useRef(faceShape);
+  const samplerRef = useRef(null);
+  const frameCountRef = useRef(0);
   const placementRef = useRef(null); // computePlacement() çıktısı
   const stabilityRef = useRef(stability);
   const optionsRef = useRef(options);
@@ -93,11 +101,22 @@ export function useFaceTracking({
     if (scene) {
       perf.measure('3D çizim', () => {
         scene.setSize(width, height);
+        scene.setStyle(opts.glasses?.style);
         scene.setOccluderDebug(Boolean(opts.showOccluders));
         scene.update(face, opts.showGlasses ? placement?.pose : null);
         scene.render();
       });
     }
+
+    perf.measure('Yüz şekli', () => {
+      // Alın görünürlüğü piksel okuma gerektirdiği için seyrek yapılır.
+      if (face && frameCountRef.current++ % 10 === 0) {
+        samplerRef.current ??= createPixelSampler();
+        const px = samplerRef.current(video, face, { forehead: FOREHEAD_POINTS, cheeks: CHEEK_POINTS });
+        if (px) faceShape.setForeheadCoverage(skinCoverage(px.forehead, px.cheeks));
+      }
+      faceShape.update(face, placement?.raw.pose?.angles ?? null, width, height);
+    });
 
     const visible = presence.update(face !== null);
     if (visible !== visibleRef.current) {
@@ -132,10 +151,11 @@ export function useFaceTracking({
     presence.reset();
     stabilizer.reset();
     stability.reset();
+    faceShape.reset();
     placementRef.current = null;
     visibleRef.current = false;
     setFaceVisible(false);
-  }, [enabled, overlayCanvasRef, glassesCanvasRef, sceneRef, presence, stabilizer, stability]);
+  }, [enabled, overlayCanvasRef, glassesCanvasRef, sceneRef, presence, stabilizer, stability, faceShape]);
 
-  return { faceVisible, placementRef, stabilityRef, presence };
+  return { faceVisible, placementRef, stabilityRef, faceShapeRef, presence };
 }

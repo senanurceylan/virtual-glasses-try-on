@@ -3,17 +3,24 @@
 //   anchors  : görseldeki göz bebeği noktaları (piksel). Yerleştirme bu iki noktayı
 //              kullanıcının göz merkezlerine oturtur.
 //              right = görselin solundaki cam (kişinin sağ gözü).
-// PNG'ler assets/glasses/*.svg kaynaklarından `npm run glasses` ile üretilir.
+//   style    : parametrik çerçeve tanımı (3D model ve öneri nitelikleri)
+// PNG'ler assets/glasses/*.svg kaynaklarından `npm run glasses` ile üretilir; SVG'ler ve
+// 3D modeller aynı parametrik tanımdan (core/frameStyles.js) gelir. Bu yüzden her model
+// hem 2D hem 3D modda denenebilir.
 
-export const GLASSES = [
-  {
-    id: 'classic-black',
-    name: 'Klasik Siyah',
-    description: 'Wayfarer tarzı siyah asetat çerçeve (2D PNG ve 3D model)',
-    src: '/glasses/classic-black.png',
-    anchors: { right: { x: 330, y: 200 }, left: { x: 870, y: 200 } },
-  },
-];
+import { FRAME_STYLES } from '../core/frameStyles.js';
+
+const ANCHORS = { right: { x: 330, y: 200 }, left: { x: 870, y: 200 } };
+
+export const GLASSES = FRAME_STYLES.map((style) => ({
+  id: style.id,
+  name: style.name,
+  description: style.description,
+  src: `/glasses/${style.id}.png`,
+  anchors: ANCHORS,
+  style,
+  modes: ['2d', '3d'],
+}));
 
 /** Görseli yükler; yüklenince HTMLImageElement döner. */
 export function loadImage(src) {

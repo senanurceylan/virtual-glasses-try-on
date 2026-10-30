@@ -25,6 +25,7 @@ import {
   WebGLRenderer,
 } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { DEFAULT_FRAME_ID, frameStyle } from '../../core/frameStyles.js';
 import { buildGlassesModel } from './glassesModel3D.js';
 import { createFaceOccluder, createHeadOccluder, setOccluderDebug } from './occluders.js';
 
@@ -60,16 +61,16 @@ export class GlassesScene {
     this.backScene = makeScene(); // maskeler + saplar
     this.frontScene = makeScene(); // ön çerçeve
 
-    const { front, temples, materials } = buildGlassesModel();
-    this.materials = materials;
     this.envMap = envMap;
 
     // Aynı poz iki sahnedeki iki gruba uygulanır.
     this.backPivot = new Group();
     this.frontPivot = new Group();
     this.headOccluder = createHeadOccluder();
-    this.backPivot.add(temples, this.headOccluder);
-    this.frontPivot.add(front);
+    this.backPivot.add(this.headOccluder);
+    this.model = null;
+    this.styleId = null;
+    this.setStyle(frameStyle(DEFAULT_FRAME_ID));
     this.faceOccluder = createFaceOccluder(faceTriangles);
     this.faceOccluder.renderOrder = -1;
     this.headOccluder.renderOrder = -1;
@@ -80,6 +81,20 @@ export class GlassesScene {
     this.width = 0;
     this.height = 0;
     this.visible = false;
+  }
+
+  /** Çerçeve modelini değiştirir (aynı modelse bir şey yapmaz). */
+  setStyle(style) {
+    if (!style || style.id === this.styleId) return;
+    if (this.model) {
+      this.frontPivot.remove(this.model.front);
+      this.backPivot.remove(this.model.temples);
+      disposeModel(this.model);
+    }
+    this.model = buildGlassesModel(style);
+    this.frontPivot.add(this.model.front);
+    this.backPivot.add(this.model.temples);
+    this.styleId = style.id;
   }
 
   setSize(width, height) {
@@ -130,10 +145,15 @@ export class GlassesScene {
     for (const scene of [this.backScene, this.frontScene]) {
       scene.traverse((obj) => obj.geometry?.dispose());
     }
-    Object.values(this.materials).forEach((m) => m.dispose());
+    if (this.model) Object.values(this.model.materials).forEach((m) => m.dispose());
     this.faceOccluder.material.dispose();
     this.headOccluder.material.dispose();
     this.envMap.dispose();
     this.renderer.dispose();
   }
+}
+
+function disposeModel({ front, temples, materials }) {
+  for (const group of [front, temples]) group.traverse((obj) => obj.geometry?.dispose());
+  Object.values(materials).forEach((m) => m.dispose());
 }
