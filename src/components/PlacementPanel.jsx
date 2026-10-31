@@ -6,10 +6,10 @@ const REFRESH_MS = 200;
 const deg = (v) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}°`;
 
 /**
- * Gözlük paneli: 2D/3D mod seçimi, görünüm ayarları ve yerleştirme hesaplarının canlı değerleri.
+ * Yerleştirme hesaplarının canlı değerleri (2D afin dönüşüm ve 3D kafa pozu).
  * Ekran aynalı olduğu için koordinatlar ekranda görüldüğü gibi gösterilir (x_ekran = genişlik − x).
  */
-export function PlacementPanel({ placementRef, glasses, view, onViewChange, scene3D }) {
+export function PlacementPanel({ placementRef, mode }) {
   const [p, setP] = useState(null);
 
   useEffect(() => {
@@ -17,8 +17,7 @@ export function PlacementPanel({ placementRef, glasses, view, onViewChange, scen
     return () => clearInterval(id);
   }, [placementRef]);
 
-  const set = (key) => (e) => onViewChange({ ...view, [key]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
-  const is3D = view.mode === '3d';
+  const is3D = mode === '3d';
   const m = p?.metrics;
   const t = p?.transform;
   const pose = p?.pose;
@@ -47,46 +46,7 @@ export function PlacementPanel({ placementRef, glasses, view, onViewChange, scen
     : [];
 
   return (
-    <section className="card">
-      <h2>Gözlük</h2>
-      <div className="glasses-current">
-        <img src={glasses.src} alt="" className="glasses-thumb" />
-        <div>
-          <strong>{glasses.name}</strong>
-          <p className="muted">{glasses.description}</p>
-        </div>
-      </div>
-
-      <div className="segmented" role="radiogroup" aria-label="Görünüm modu">
-        {[
-          ['2d', '2D (PNG)'],
-          ['3d', '3D (Three.js)'],
-        ].map(([value, label]) => (
-          <label key={value} className={view.mode === value ? 'is-active' : ''}>
-            <input type="radio" name="mode" value={value} checked={view.mode === value} onChange={set('mode')} />
-            {label}
-          </label>
-        ))}
-      </div>
-      {is3D && scene3D.status === 'error' && <p className="error-text">{scene3D.error} 2D moda geçebilirsiniz.</p>}
-
-      <div className="toggles">
-        <label className="toggle">
-          <input type="checkbox" checked={view.showGlasses} onChange={set('showGlasses')} />
-          <span>Gözlüğü göster</span>
-        </label>
-        <label className="toggle">
-          <input type="checkbox" checked={view.showGeometry} onChange={set('showGeometry')} />
-          <span>Yerleştirme geometrisi (göz merkezleri, açı)</span>
-        </label>
-        {is3D && (
-          <label className="toggle">
-            <input type="checkbox" checked={view.showOccluders} onChange={set('showOccluders')} />
-            <span>Occlusion maskelerini göster (yüz ağı, kafa)</span>
-          </label>
-        )}
-      </div>
-
+    <div className="panel-body">
       {is3D && (
         <>
           <h3 className="subhead">3D kafa pozu</h3>
@@ -96,7 +56,7 @@ export function PlacementPanel({ placementRef, glasses, view, onViewChange, scen
 
       <h3 className="subhead">2D yerleştirme hesapları</h3>
       {m ? <KeyValues rows={rows2D} /> : <p className="muted">Yüz algılandığında değerler burada görünür.</p>}
-    </section>
+    </div>
   );
 }
 

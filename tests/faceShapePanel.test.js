@@ -4,26 +4,44 @@ import { describe, expect, it } from 'vitest';
 import { FaceShapePanel } from '../src/components/FaceShapePanel.jsx';
 import { SHAPES } from '../src/core/faceShape.js';
 import { FaceShapeEstimator } from '../src/core/faceShapeEstimator.js';
+import { useFaceShapeView } from '../src/hooks/useFaceShapeState.js';
 import { shapeFace, W, H } from './shapeFace.js';
 
-const render = (estimator, selectedId = 'classic-black') =>
-  renderToString(createElement(FaceShapePanel, { faceShapeRef: { current: estimator }, selectedId, onSelect: () => {} }));
+// Panel, useFaceShapeState() çıktısını alır; testte aynı görünüm hesabı doğrudan yapılır.
+function Harness({ estimator, selectedId }) {
+  const view = useFaceShapeView({ ...estimator.state });
+  return createElement(FaceShapePanel, { view, selectedId, onSelect: () => {} });
+}
+const render = (estimator, selectedId = 'classic-black') => renderToString(createElement(Harness, { estimator, selectedId }));
 
 describe('FaceShapePanel', () => {
-  it('yüz yokken durum mesajını ve tüm çerçeveleri gösterir, öneri göstermez', () => {
+  it('yüz yokken durum mesajını ve ölçüm yönergelerini (açık) gösterir, öneri göstermez', () => {
     const html = render(new FaceShapeEstimator());
     expect(html).toContain('Yüz algılanmadı');
-    expect(html).toContain('Cat-eye');
-    expect(html).not.toContain('Önerilen çerçeveler');
+    expect(html).toContain('50–70 cm');
+    expect(html).toContain('collapsible-body'); // yönergeler sonuç yokken açık başlar
+    expect(html).not.toContain('önerilen çerçeveler');
+  });
+
+  it('olasılıkların doğrulanmış doğruluk oranı olmadığını belirtir', () => {
+    expect(render(new FaceShapeEstimator())).toContain('doğrulanmış bir doğruluk oranı değildir');
+  });
+
+  it('ölçüm sürerken ilerleme çubuğu gösterir', () => {
+    const est = new FaceShapeEstimator();
+    for (let i = 0; i < 12; i++) est.update(shapeFace(SHAPES.oval.proto), { yaw: 0, pitch: 0, roll: 0 }, W, H);
+    const html = render(est);
+    expect(html).toContain('role="progressbar"');
+    expect(html).toContain('aria-valuenow="40"');
   });
 
   it('tahmin hazırsa yaklaşık sonucu, oranları ve 3 öneri kartını gösterir', () => {
     const est = new FaceShapeEstimator();
     for (let i = 0; i < 40; i++) est.update(shapeFace(SHAPES.heart.proto), { yaw: 0, pitch: 0, roll: 0 }, W, H);
     const html = render(est);
-    expect(html).toContain('Yaklaşık tahmin');
+    expect(html).toContain('Yaklaşık yüz şekli');
     expect(html).toContain('Kalp');
-    expect(html).toContain('Çene köşesi açısı');
+    expect(html).toContain('Kullanılan yüz oranları'); // oran tablosu açılır panelde
     expect(html.match(/class="rec-card/g)).toHaveLength(3);
     expect(html).toContain('kesin kurallar değildir');
   });

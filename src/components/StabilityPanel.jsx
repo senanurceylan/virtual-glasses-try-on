@@ -36,8 +36,7 @@ export function StabilityPanel({ placementRef, stabilityRef, view, onViewChange 
   const rows = p ? compareRows(p) : [];
 
   return (
-    <section className="card">
-      <h2>Stabilizasyon</h2>
+    <div className="panel-body">
       <div className="toggles toggles--flat">
         <label className="toggle">
           <input
@@ -115,7 +114,7 @@ export function StabilityPanel({ placementRef, stabilityRef, view, onViewChange 
       ) : (
         <p className="muted">Yüz algılandığında değerler burada görünür.</p>
       )}
-    </section>
+    </div>
   );
 }
 

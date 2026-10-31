@@ -18,9 +18,42 @@ npm run model     # MediaPipe yüz modeli (~3.6 MB) → public/models/
 npm run dev       # http://localhost:5173
 ```
 
-Tarayıcı kamera izni istediğinde **İzin ver**'i seçin. Chrome önerilir.
-macOS ilk seferde tarayıcı için kamera izni isteyebilir
-(Sistem Ayarları → Gizlilik ve Güvenlik → Kamera).
+**Model dosyaları:** Yüz modeli (`face_landmarker.task`) boyutu nedeniyle depoda yoktur. `npm run model`
+komutu dosyayı Google'ın resmî MediaPipe deposundan
+(`storage.googleapis.com/mediapipe-models/face_landmarker/...`) indirir ve `public/models/` klasörüne koyar.
+MediaPipe'ın WASM dosyaları `npm install` ile gelen paketten `npm run dev` / `npm run build` öncesinde otomatik
+kopyalanır. Kurulumdan sonra uygulama internet bağlantısı olmadan da çalışır.
+
+**Kamera izni:** Tarayıcı izin istediğinde **İzin ver**'i seçin (Chrome önerilir). Kamera yalnızca
+`localhost` ya da `https` üzerinde açılabilir.
+- İzni yanlışlıkla reddettiyseniz adres çubuğundaki kamera / kilit simgesinden izin verip **Tekrar dene**'ye basın.
+- macOS'ta tarayıcıya ayrıca sistem izni gerekebilir: Sistem Ayarları → Gizlilik ve Güvenlik → Kamera.
+- Kamera başka bir uygulamada (Zoom, FaceTime) açıksa önce oradan kapatın.
+
+## Kullanım
+
+1. Sayfa açılınca kamera kendiliğinden başlar. Sağ üstteki **Kamerayı durdur / başlat** düğmesiyle kapatıp
+   yeniden açabilirsiniz.
+2. Kameradan 50–70 cm uzakta, düz bakarak durun. **Yüz analizi** paneli birkaç saniye içinde yaklaşık yüz
+   şeklini ve size en uygun üç çerçeveyi gösterir. Ölçüm sırasında ilerleme çubuğu ve gerekirse uyarılar
+   (baş dönük, ağız açık, alın kapalı vb.) görünür.
+3. Kameranın altındaki **Gözlük kataloğu**ndan bir model seçin. Önerilen modeller ★ ile işaretlidir.
+   Seçim anında uygulanır, kamera kesilmez.
+4. Kamera üzerindeki araç çubuğundan **2D / 3D** arasında geçin, gözlüğü gizleyip gösterin.
+5. **📷 Ekran görüntüsü** ile seçili gözlükle bir kare alın. Önizlemede **İndir** dosyayı bilgisayarınıza kaydeder.
+6. **Teknik ayrıntılar** bölümündeki açılır paneller algoritmayı göstermek içindir: yüz noktaları ve
+   yerleştirme geometrisi katmanları, One Euro filtresi ayarları ve titreme ölçümü, yerleştirme hesapları,
+   model bilgisi. Alttaki çubuk FPS ile tespit, yerleştirme ve çizim sürelerini sürekli gösterir.
+
+### Ekran görüntüsü ve gizlilik
+
+- Görüntü **tamamen tarayıcıda** oluşturulur: kamera karesi, 2D gözlük canvas'ı ya da 3D (WebGL) canvas'ı
+  aynı ayna dönüşümüyle tek bir PNG'de birleştirilir (`src/render/snapshot.js`).
+- Birleştirme, gözlük çizildikten hemen sonra aynı kare içinde yapılır. Böylece gözlük kameraya göre kaymaz ve
+  WebGL tamponu temizlenmeden okunur.
+- Görüntü ya da kamera karesi **hiçbir sunucuya gönderilmez**. Uygulama kodunda ağ gönderme API'si
+  kullanılmaz (bir test bunu denetler). Yalnızca **İndir**'e basarsanız dosya bilgisayarınıza kaydedilir.
+- Ekran görüntüsünde yüz noktaları ve geometri katmanları yer almaz; yalnızca kamera ve gözlük vardır.
 
 | Komut | Açıklama |
 |---|---|
@@ -165,6 +198,23 @@ Altı model var: Wayfarer, Yuvarlak, Kare, Dikdörtgen, Aviator, Cat-eye. Hepsi 
 - Ten kontrolü renk tabanlıdır: tene yakın renkte saç, güçlü renkli ışık veya makyaj yanıltabilir.
 - Kamera lensi (geniş açı, yakın mesafe) yüz oranlarını perspektifle bozabilir. 50 cm civarı mesafe önerilir.
 
+## Teknik sınırlamalar
+
+- **Yüz şekli** tahmini prototip oranlara dayanır ve gerçek yüz verisiyle kalibre edilmemiştir. Yüzdeler benzerliktir,
+  doğrulanmış doğruluk oranı değildir.
+- **Tek yüz** takip edilir. Kadrajda birden fazla kişi varsa ilk algılanan kullanılır.
+- **Işık ve kamera kalitesi** sonucu etkiler: karanlık ortam, arkadan ışık ya da düşük çözünürlük noktaları titretir,
+  alın kontrolünü yanıltabilir.
+- **Gözlük modelleri** parametrik olarak üretilmiştir; gerçek marka/model ölçülerini birebir yansıtmaz. Gözlük
+  ölçüsü ortalama göz bebeği mesafesine (6,3 cm) göre ayarlanır.
+- **3D mod** WebGL ister. Desteklenmezse uygulama 2D moda düşer. Occlusion yüz ağı ve basit bir kafa elipsoidiyle
+  yapılır; saç ve kulaklar modellenmez.
+- **Performans** cihaza bağlıdır. M2 MacBook'ta GPU ile yaklaşık 30 FPS ölçüldü. Zayıf cihazlarda FPS düşebilir;
+  One Euro filtresi gerçek kare süresini kullandığı için davranışı FPS'ten büyük ölçüde bağımsızdır.
+- **Tarayıcı:** Chrome ile test edildi. Safari ve Firefox'ta `requestVideoFrameCallback` ve WebGL davranışları
+  farklılık gösterebilir; kapsamlı olarak denenmedi.
+- **Ekran:** Masaüstü ve tablet (≥ 768 px) için tasarlandı; telefon ekranında çalışır ama düzen sıkışıktır.
+
 ## Aşamalar
 
 - [x] **Aşama 0:** Kurulum, kamera, performans ölçüm altyapısı
@@ -173,6 +223,6 @@ Altı model var: Wayfarer, Yuvarlak, Kare, Dikdörtgen, Aviator, Cat-eye. Hepsi 
 - [x] **Aşama 3:** 3D gözlük (Three.js): kafa pozu matrisi, 3D model, occlusion, 2D/3D geçişi
 - [x] **Aşama 4:** Stabilizasyon (One Euro filtresi): titreme azaltma, ham/filtreli karşılaştırma paneli (tamamlandı)
 - [x] **Aşama 5:** Yüz şekli tahmini ve gözlük önerileri: oranlar, çok kareli tahmin, güvenilirlik kontrolleri, 6 çerçeve (tamamlandı)
-- [ ] Aşama 6: Arayüz geliştirmeleri
+- [x] **Aşama 6:** Profesyonel arayüz: yeni düzen, katalog, kamera durumları, ekran görüntüsü (tamamlandı)
 - [ ] Aşama 7: Algoritma gösterim modu
 - [ ] Aşama 8: Test ve rapor

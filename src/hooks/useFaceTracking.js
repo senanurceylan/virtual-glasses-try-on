@@ -28,6 +28,9 @@ import { useFrameLoop } from './useFrameLoop.js';
  * verisi `placementRef`, ham/filtreli titreme ölçümü `stabilityRef`, yüz şekli durumu
  * `faceShapeRef` ile paneller tarafından periyodik okunur.
  *
+ * captureRef: ekran görüntüsü isteği (fonksiyon). Kare çizildikten hemen sonra, aynı
+ * görevde katmanlarla çağrılır; böylece WebGL çizimi henüz temizlenmemiştir.
+ *
  * options: { mode: '2d'|'3d', overlay, showGlasses, showGeometry, showOccluders,
  *            stabilize, filterParams: {minCutoff, beta, dCutoff},
  *            glasses: {image, anchors} | null }
@@ -41,6 +44,7 @@ export function useFaceTracking({
   perf,
   enabled,
   options,
+  captureRef,
 }) {
   const clock = useMemo(() => createMonotonicClock(), []);
   const presence = useMemo(() => new FacePresence(), []);
@@ -105,6 +109,17 @@ export function useFaceTracking({
         scene.setOccluderDebug(Boolean(opts.showOccluders));
         scene.update(face, opts.showGlasses ? placement?.pose : null);
         scene.render();
+      });
+    }
+
+    const capture = captureRef?.current;
+    if (capture) {
+      captureRef.current = null;
+      capture({
+        layers: { video, glassesCanvas, threeCanvas: scene?.renderer.domElement ?? null, overlayCanvas },
+        mode: scene ? '3d' : '2d', // 3D başlatılamadıysa 2D çizilir
+        width,
+        height,
       });
     }
 

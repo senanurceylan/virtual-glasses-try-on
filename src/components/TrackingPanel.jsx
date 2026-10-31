@@ -1,29 +1,16 @@
 import { LANDMARK_COUNT } from '../core/landmarkUtils.js';
 
-const TOGGLES = [
-  { key: 'showPoints', label: '478 nokta' },
-  { key: 'colorByDepth', label: 'Derinliğe göre renk (z)' },
+const OVERLAY_TOGGLES = [
+  { key: 'showPoints', label: '478 yüz noktası' },
+  { key: 'colorByDepth', label: 'Noktaları derinliğe göre renklendir (z)' },
   { key: 'showContours', label: 'Konturlar (göz, kaş, dudak, iris)' },
   { key: 'showBox', label: 'Yüz sınır kutusu' },
 ];
 
-/** Yüz takibinin durumu ve çizim katmanlarının aç/kapa ayarları. */
-export function TrackingPanel({ model, faceVisible, running, style, onStyleChange }) {
-  let status;
-  if (model.status === 'loading') status = { text: 'Model yükleniyor…', tone: 'muted' };
-  else if (model.status === 'error') status = { text: 'Model hatası', tone: 'error' };
-  else if (!running) status = { text: 'Kamera bekleniyor', tone: 'muted' };
-  else if (faceVisible) status = { text: 'Yüz algılandı', tone: 'ok' };
-  else status = { text: 'Yüz aranıyor', tone: 'warn' };
-
+/** Yüz takibi modelinin bilgileri. */
+export function ModelInfo({ model, faceVisible }) {
   return (
-    <section className="card">
-      <h2>Yüz takibi</h2>
-      <div className={`status-pill status-pill--${status.tone}`}>
-        <span className="status-dot" />
-        {status.text}
-      </div>
-
+    <div className="panel-body">
       <dl className="kv">
         <dt>Model</dt>
         <dd>MediaPipe Face Landmarker</dd>
@@ -34,9 +21,20 @@ export function TrackingPanel({ model, faceVisible, running, style, onStyleChang
         <dt>Model yükleme</dt>
         <dd>{model.loadMs ? `${Math.round(model.loadMs)} ms` : '–'}</dd>
       </dl>
+    </div>
+  );
+}
 
-      <div className="toggles">
-        {TOGGLES.map(({ key, label }) => (
+/**
+ * Algoritma katmanları: yüz noktaları, konturlar, yerleştirme geometrisi ve
+ * (3D modda) occlusion maskeleri. Sunumda algoritmayı göstermek için açılır.
+ */
+export function LayersPanel({ style, onStyleChange, view, onViewChange }) {
+  const setView = (key) => (e) => onViewChange({ ...view, [key]: e.target.checked });
+  return (
+    <div className="panel-body">
+      <div className="toggles toggles--flat">
+        {OVERLAY_TOGGLES.map(({ key, label }) => (
           <label key={key} className="toggle">
             <input
               type="checkbox"
@@ -47,7 +45,24 @@ export function TrackingPanel({ model, faceVisible, running, style, onStyleChang
             <span>{label}</span>
           </label>
         ))}
+        <label className="toggle">
+          <input type="checkbox" checked={view.showGeometry} onChange={setView('showGeometry')} />
+          <span>Yerleştirme geometrisi (göz merkezleri, eğim açısı)</span>
+        </label>
+        <label className="toggle">
+          <input type="checkbox" checked={view.showOccluders} disabled={view.mode !== '3d'} onChange={setView('showOccluders')} />
+          <span>Occlusion maskeleri (yalnızca 3D: yüz ağı, kafa)</span>
+        </label>
       </div>
-    </section>
+    </div>
   );
+}
+
+/** Yüz takibinin kısa durumu (başlıkta gösterilir). */
+export function trackingStatus({ model, running, faceVisible }) {
+  if (model.status === 'loading') return { text: 'Model yükleniyor…', tone: 'muted' };
+  if (model.status === 'error') return { text: 'Model hatası', tone: 'error' };
+  if (!running) return { text: 'Kamera kapalı', tone: 'muted' };
+  if (faceVisible) return { text: 'Yüz algılandı', tone: 'ok' };
+  return { text: 'Yüz aranıyor', tone: 'warn' };
 }
