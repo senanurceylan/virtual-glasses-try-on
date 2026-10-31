@@ -44,6 +44,8 @@ kopyalanır. Kurulumdan sonra uygulama internet bağlantısı olmadan da çalı�
 6. **Teknik ayrıntılar** bölümündeki açılır paneller algoritmayı göstermek içindir: yüz noktaları ve
    yerleştirme geometrisi katmanları, One Euro filtresi ayarları ve titreme ölçümü, yerleştirme hesapları,
    model bilgisi. Alttaki çubuk FPS ile tespit, yerleştirme ve çizim sürelerini sürekli gösterir.
+7. **Algoritma Modu** (araç çubuğundaki **Algoritma** kutusu ya da sağdaki **Algoritma Modu** anahtarı) işlem
+   adımlarını kamera üzerinde canlı gösterir. Ayrıntılar aşağıda.
 
 ### Ekran görüntüsü ve gizlilik
 
@@ -198,6 +200,62 @@ Altı model var: Wayfarer, Yuvarlak, Kare, Dikdörtgen, Aviator, Cat-eye. Hepsi 
 - Ten kontrolü renk tabanlıdır: tene yakın renkte saç, güçlü renkli ışık veya makyaj yanıltabilir.
 - Kamera lensi (geniş açı, yakın mesafe) yüz oranlarını perspektifle bozabilir. 50 cm civarı mesafe önerilir.
 
+## Algoritma Modu
+
+Sunum ve anlatım içindir. Varsayılan olarak **kapalıdır**. Kapalıyken kare döngüsü bu modu tek bir `if` ile atlar:
+ek çizim, hesap ya da React güncellemesi yapılmaz, panel içeriği de çizilmez.
+
+Açıkken her karede yalnızca **mevcut hesapların çıktıları** çizilir (`computePlacement`, `measureFace`,
+`FaceShapeEstimator`). Yeni bir algoritma yoktur ve filtre davranışı değişmez. Çizimler iki katmandadır:
+
+| Katman | Aynalı mı? | İçerik |
+|---|---|---|
+| Nokta canvas'ı | evet (videoyla aynı ham piksel koordinatı) | noktalar, ağ, çizgiler, halkalar |
+| Etiket canvas'ı (`.stage-labels`) | hayır | sayılar, 3D eksenler; ham x ekranda `genişlik − x` konumunda |
+
+Her katman paneldeki **Katmanlar** bölümünden ayrı açılıp kapatılır:
+
+1. **Yüz noktaları:** 478 nokta bölgelere göre renklenir: yüz ovali, göz, kaş, iris, dudak (MediaPipe kontur
+   listeleri) ve burun (kanonik ağdan seçilmiş yaklaşık liste). İsteğe bağlı olarak z derinliğine göre
+   renklenir ya da yüz ağı (tesselasyon) çizilir. Kritik noktalar (33, 133, 362, 263) beyaz halkayla gösterilir;
+   gözlük yerleştirmesi yalnızca bu dört göz köşesine dayanır.
+   **Yalnızca yüz noktaları** düğmesi diğer katmanları kapatır; noktaların gerçek yüzle hizasını tek başına
+   kontrol etmek içindir. **Varsayılan katmanlar** önceki seçime döner.
+2. **2D yerleştirme:**
+   - Göz merkezleri: R = (p₃₃ + p₁₃₃)/2, L = (p₃₆₂ + p₂₆₃)/2.
+   - Referans çizgisi: Δ = L − R, d = |Δ|, θ = atan2(Δy, Δx). Kesikli yatay çizgi θ = 0'dır.
+   - Ölçek: sx = d₂D / d_görsel, sy = d₃D / d_görsel. d_görsel, PNG'deki iki göz noktası arasıdır (540 px).
+   - Afin matris: a = sx·cos θ, b = sx·sin θ, c = −sy·sin θ, d = sy·cos θ. (e, f) ötelemesi görseldeki göz
+     orta noktasını yüzdeki göz merkezine taşır. Canvas `setTransform(a, b, c, d, e, f)` ile
+     x′ = a·x + c·y + e, y′ = b·x + d·y + f uygular.
+   - Mavi kesikli dörtgen, dönüştürülmüş gözlük görselinin sınırıdır. Panel canlı matrisi gösterir.
+3. **3D kafa pozu:**
+   - Eksen gizmosu gözlük merkezinde çizilir: X kırmızı, Y yeşil, Z mavi (yüzün baktığı yön). Eksenler,
+     filtrelenmiş kuaterniyonun dönme matrisi sütunlarıdır (`poseAxes`).
+   - Sağ üst köşede yaw, pitch ve roll değerleri gösterilir.
+   - Three.js dönüşümü: `quaternion` matrisin dönme kısmından gelir. `position` göz merkezidir (X = x, Y = −y).
+     `scale` px/cm = d₃D / 6,3 cm'dir.
+   - 3D modda occlusion maskeleri renkli gösterilebilir.
+4. **One Euro filtresi:**
+   - Gri halkalar ham göz merkezleri, yeşil noktalar filtreli değerlerdir. Filtre kapatılınca üst üste düşerler.
+   - Panelde α = r/(r+1), r = 2π·fc·Δt formülü, minCutoff, beta ve dCutoff açıklamaları, titreme RMS
+     değerleri ve ham/filtreli zaman grafiği bulunur.
+5. **Yüz şekli (deneysel):**
+   - Kamera üzerinde alın (54–284), elmacık (234–454), çene (172–397) ve çene ucu (149–378) genişlikleri, yüz
+     uzunluğu (10–152) ve çene köşesi açıları (234–172–152, 454–397–152) çizilir. Yanlarına elmacık
+     genişliğine bölünmüş oranları yazılır.
+   - Panel bu karenin oranlarını, medyanı ve ortalama yüzü yan yana gösterir.
+   - Altı kabul koşulu tek tek ✓/✗ ile listelenir: poz, kadraj, uzaklık, ağız, makul oran, alın. Sıra,
+     tahmin edicinin reddetme önceliğiyle aynıdır (`evaluateGates`).
+   - Sınıflandırma gerçek yüz verisiyle doğrulanmamıştır.
+6. **Performans:**
+   - Algoritma çizimi kendi süre kalemiyle (`Algoritma`) ölçülür.
+   - Panel, mod açıkken ve kapalıyken alınan FPS ve kare süresi örneklerini ayrı ayrı ortalar
+     (`ModeComparison`). Mod değişiminden sonraki 1,5 sn atılır.
+   - FPS kamerayla sınırlı olduğundan asıl karşılaştırma kare süresidir.
+   - Ölçülen CPU çizim maliyeti (Chrome, M2, 1280×720): varsayılan katmanlar ≈ 0,09 ms/kare, ağ dahil tüm
+     katmanlar ≈ 0,15 ms/kare.
+
 ## Teknik sınırlamalar
 
 - **Yüz şekli** tahmini prototip oranlara dayanır ve gerçek yüz verisiyle kalibre edilmemiştir. Yüzdeler benzerliktir,
@@ -224,5 +282,5 @@ Altı model var: Wayfarer, Yuvarlak, Kare, Dikdörtgen, Aviator, Cat-eye. Hepsi 
 - [x] **Aşama 4:** Stabilizasyon (One Euro filtresi): titreme azaltma, ham/filtreli karşılaştırma paneli (tamamlandı)
 - [x] **Aşama 5:** Yüz şekli tahmini ve gözlük önerileri: oranlar, çok kareli tahmin, güvenilirlik kontrolleri, 6 çerçeve (tamamlandı)
 - [x] **Aşama 6:** Profesyonel arayüz: yeni düzen, katalog, kamera durumları, ekran görüntüsü (tamamlandı)
-- [ ] Aşama 7: Algoritma gösterim modu
+- [x] **Aşama 7:** Algoritma Modu: landmark bölgeleri, yerleştirme geometrisi, kafa pozu eksenleri, filtre ve yüz şekli görselleştirmesi (tamamlandı)
 - [ ] Aşama 8: Test ve rapor

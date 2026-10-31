@@ -10,10 +10,12 @@ export function syntheticFace({ cx = 0.5, cy = 0.5, rx = 0.15, ry = 0.2, count =
 export function mockContext(width = 1280, height = 720) {
   const calls = [];
   const record = (name) => (...args) => calls.push({ name, args });
-  return {
+  const ctx = {
     canvas: { width, height },
     calls,
     count: (name) => calls.filter((c) => c.name === name).length,
+    /** fillText çağrılarının metinleri ve konumları */
+    texts: () => calls.filter((c) => c.name === 'fillText').map((c) => ({ text: c.args[0], x: c.args[1], y: c.args[2] })),
     clearRect: record('clearRect'),
     fillRect: record('fillRect'),
     strokeRect: record('strokeRect'),
@@ -28,5 +30,17 @@ export function mockContext(width = 1280, height = 720) {
     drawImage: record('drawImage'),
     arc: record('arc'),
     fill: record('fill'),
+    fillText: record('fillText'),
+    strokeText: record('strokeText'),
   };
+  // fillStyle atamaları da kaydedilir (renk testleri için)
+  let fill = '#000';
+  Object.defineProperty(ctx, 'fillStyle', {
+    get: () => fill,
+    set: (v) => {
+      fill = v;
+      calls.push({ name: 'fillStyle', args: [v] });
+    },
+  });
+  return ctx;
 }

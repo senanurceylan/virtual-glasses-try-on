@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { AlgorithmPanel } from './components/AlgorithmPanel.jsx';
 import { CameraStage } from './components/CameraStage.jsx';
 import { Collapsible } from './components/Collapsible.jsx';
 import { FaceShapePanel } from './components/FaceShapePanel.jsx';
@@ -10,6 +11,7 @@ import { StageHud } from './components/StageHud.jsx';
 import { StageToolbar } from './components/StageToolbar.jsx';
 import { StatusBar } from './components/StatusBar.jsx';
 import { LayersPanel, ModelInfo, trackingStatus } from './components/TrackingPanel.jsx';
+import { DEFAULT_ALGO } from './core/algorithmLayers.js';
 import { DEFAULT_FRAME_ID } from './core/frameStyles.js';
 import { DEFAULT_PARAMS } from './core/oneEuroFilter.js';
 import { PerfMonitor } from './core/perfMonitor.js';
@@ -19,6 +21,7 @@ import { useFaceShapeState } from './hooks/useFaceShapeState.js';
 import { useFaceTracking } from './hooks/useFaceTracking.js';
 import { useGlassesModel } from './hooks/useGlassesModel.js';
 import { useGlassesScene } from './hooks/useGlassesScene.js';
+import { useModeComparison } from './hooks/useModeComparison.js';
 import { useSnapshot } from './hooks/useSnapshot.js';
 import { DEFAULT_STYLE } from './render/landmarkOverlay.js';
 import { snapshotFileName } from './render/snapshot.js';
@@ -47,6 +50,7 @@ export default function App() {
   const overlayCanvasRef = useRef(null);
   const glassesCanvasRef = useRef(null);
   const threeCanvasRef = useRef(null);
+  const labelCanvasRef = useRef(null);
   const [overlayStyle, setOverlayStyle] = useState(INITIAL_OVERLAY);
   const [view, setView] = useState({
     mode: '2d',
@@ -56,6 +60,7 @@ export default function App() {
     stabilize: true,
     filterParams: { ...DEFAULT_PARAMS },
   });
+  const [algo, setAlgo] = useState(DEFAULT_ALGO);
   const scene3D = useGlassesScene(threeCanvasRef, view.mode === '3d');
   const [glassesId, setGlassesId] = useState(DEFAULT_FRAME_ID);
   const { model: glassesModel, glasses } = useGlassesModel(glassesId);
@@ -66,14 +71,16 @@ export default function App() {
     videoRef: camera.videoRef,
     overlayCanvasRef,
     glassesCanvasRef,
+    labelCanvasRef,
     sceneRef: scene3D.sceneRef,
     landmarkerRef: model.landmarkerRef,
     perf,
     enabled: running && model.status === 'ready',
-    options: { overlay: overlayStyle, glasses, ...view },
+    options: { overlay: overlayStyle, glasses, algorithm: algo, ...view },
     captureRef,
   });
   const faceShape = useFaceShapeState(faceShapeRef);
+  const comparison = useModeComparison(perf, running, algo.enabled);
 
   // Ekran görüntüsü: bir sonraki karede katmanlar birleştirilir, önizleme açılır.
   const [snapshot, setSnapshot] = useState(null);
@@ -139,12 +146,15 @@ export default function App() {
                 onModeChange={(m) => setView((v) => ({ ...v, mode: m }))}
                 showGlasses={view.showGlasses}
                 onShowGlassesChange={(on) => setView((v) => ({ ...v, showGlasses: on }))}
+                algorithm={algo.enabled}
+                onAlgorithmChange={(on) => setAlgo((a) => ({ ...a, enabled: on }))}
                 onSnapshot={takeSnapshot}
                 canSnapshot={running}
                 busy={snapState.busy}
                 scene3D={scene3D}
               />
             }
+            labels={<canvas ref={labelCanvasRef} className="stage-canvas stage-labels" />}
           >
             <canvas ref={glassesCanvasRef} className="stage-canvas" />
             <canvas ref={threeCanvasRef} className="stage-canvas" />
@@ -160,6 +170,18 @@ export default function App() {
         </div>
 
         <aside className="layout-side">
+          <AlgorithmPanel
+            algo={algo}
+            onAlgoChange={setAlgo}
+            view={view}
+            onViewChange={setView}
+            mode={mode}
+            perf={perf}
+            comparison={comparison}
+            placementRef={placementRef}
+            stabilityRef={stabilityRef}
+            faceShapeRef={faceShapeRef}
+          />
           <FaceShapePanel view={faceShape} selectedId={glassesId} onSelect={setGlassesId} />
 
           <section className="card card--tech" aria-labelledby="tech-title">

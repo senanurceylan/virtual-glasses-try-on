@@ -9,10 +9,11 @@ const PERMISSION_HELP = [
  * Ayna görüntüsü için tüm `.stage-layers` kapsayıcısı yatayda çevrilir;
  * böylece canvas katmanları videoyla aynı koordinatlarda kalır.
  * `notice`, `hud` ve `toolbar` aynalanmamış katmanda gösterilir (yazı ters görünmesin diye).
+ * `labels`: aynalanmamış, videoyla aynı boyutta bir katman (Algoritma Modu etiketleri).
  *
  * Durumlar: idle (kamera kapalı) · starting (açılıyor) · error (izin vb.) · ready.
  */
-export function CameraStage({ videoRef, status, error, errorName, info, onStart, notice, hud, toolbar, children }) {
+export function CameraStage({ videoRef, status, error, errorName, info, onStart, notice, hud, toolbar, labels, children }) {
   const aspect = info?.width && info?.height ? `${info.width} / ${info.height}` : '16 / 9';
   const permissionDenied = errorName === 'NotAllowedError' || errorName === 'SecurityError';
 
@@ -22,6 +23,7 @@ export function CameraStage({ videoRef, status, error, errorName, info, onStart,
         <video ref={videoRef} className="stage-video" playsInline muted />
         {children}
       </div>
+      {labels}
 
       {status === 'ready' && hud}
       {status === 'ready' && notice && (

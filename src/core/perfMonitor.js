@@ -78,6 +78,11 @@ export class PerfMonitor {
     this.stages.get(name).push(ms);
   }
 
+  /** Artık çalışmayan bir aşamanın kayıtlarını siler (ör. Algoritma Modu kapanınca). */
+  drop(name) {
+    this.stages.delete(name);
+  }
+
   /** Senkron bir fonksiyonu çalıştırıp süresini kaydeder, sonucunu döndürür. */
   measure(name, fn) {
     const t0 = this.now();

@@ -157,7 +157,7 @@ function JitterRow({ label, unit, s }) {
 }
 
 /** Son kareler: merkez x ve eğim, ham (soluk) ve filtrelenmiş (renkli). Her eksen kendi aralığına ölçeklenir. */
-function HistoryChart({ history }) {
+export function HistoryChart({ history }) {
   const ref = useRef(null);
 
   useEffect(() => {

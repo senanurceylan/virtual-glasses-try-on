@@ -65,6 +65,48 @@ function poseHint(angles, o) {
   return `Başınız yana yatık (${Math.round(Math.abs(angles.roll))}°).`;
 }
 
+/**
+ * Örnek kabul koşullarının hepsini (ilk başarısız olanda durmadan) değerlendirir.
+ * Sıra, reddetme önceliğidir: ilk başarısız koşul kullanıcıya bildirilir.
+ * Algoritma Modu bu listeyi canlı gösterir.
+ * @returns {{key, label, ok, value}[]}  value: göstermek için ölçülen değer (sayı ya da null)
+ */
+export function evaluateGates({ face, measurement: m, angles, mouthOpen, forehead }, o = ESTIMATOR_DEFAULTS) {
+  const poseOk =
+    Boolean(angles) && Math.abs(angles.yaw) <= o.maxYaw && Math.abs(angles.pitch) <= o.maxPitch && Math.abs(angles.roll) <= o.maxRoll;
+  const used = Object.values(SHAPE_LANDMARKS).flat(2);
+  const inFrame = !used.some((i) => face[i].x < 0.01 || face[i].x > 0.99 || face[i].y < 0.01 || face[i].y > 0.99);
+  const plausible = !Object.entries(PLAUSIBLE).some(([k, [lo, hi]]) => m.ratios[k] < lo || m.ratios[k] > hi);
+  return [
+    {
+      key: 'pose',
+      label: `Baş düz: |yaw|, |pitch| ≤ ${o.maxYaw}°, |roll| ≤ ${o.maxRoll}°`,
+      ok: poseOk,
+      value: angles ? Math.max(Math.abs(angles.yaw), Math.abs(angles.pitch), Math.abs(angles.roll)) : null,
+    },
+    { key: 'out-of-frame', label: 'Ölçüm noktaları kadraj içinde', ok: inFrame, value: null },
+    { key: 'too-far', label: `Elmacık genişliği ≥ ${o.minCheekPx} px`, ok: m.px.cheekbone >= o.minCheekPx, value: m.px.cheekbone },
+    {
+      key: 'mouth',
+      label: `Ağız kapalı (açılınca > ${o.mouthEnter}, kapanınca < ${o.mouthExit})`,
+      ok: !mouthOpen,
+      value: m.mouthOpen,
+    },
+    {
+      key: 'implausible',
+      label: `Oranlar makul aralıkta, iki çene açısı farkı ≤ ${o.maxAngleAsymmetry}°`,
+      ok: plausible && m.angleAsymmetry <= o.maxAngleAsymmetry,
+      value: m.angleAsymmetry,
+    },
+    {
+      key: 'forehead',
+      label: `Alın görünür (ten oranı ≥ ${o.minForehead})`,
+      ok: forehead === null || forehead >= o.minForehead,
+      value: forehead,
+    },
+  ];
+}
+
 export class FaceShapeEstimator {
   constructor(options = {}) {
     this.o = { ...ESTIMATOR_DEFAULTS, ...options, maxSpread: { ...ESTIMATOR_DEFAULTS.maxSpread, ...options.maxSpread } };
@@ -77,6 +119,8 @@ export class FaceShapeEstimator {
     this.forehead = null; // son alın ten oranı
     this.mouthOpen = false; // histerezisli ağız durumu
     this.mouthValue = null; // son ölçülen ağız açıklığı
+    this.measurement = null; // son karenin ölçümü (measureFace)
+    this.gates = null; // son karenin kabul koşulları (evaluateGates)
     this.state = { status: 'no-face', message: STATUS_TEXT['no-face'], progress: 0, result: null, last: null, forehead: null, mouth: null };
   }
 
@@ -97,6 +141,8 @@ export class FaceShapeEstimator {
         this.reset();
         return this.state;
       }
+      this.measurement = null;
+      this.gates = null;
       return this.setState('no-face');
     }
     this.missing = 0;
@@ -124,7 +170,7 @@ export class FaceShapeEstimator {
     });
   }
 
-  /** Örneği reddetme nedeni (yoksa null). Ölçüm this.measurement'a yazılır. */
+  /** Örneği reddetme nedeni (yoksa null). Ölçüm this.measurement'a, kontroller this.gates'e yazılır. */
   rejectReason(face, angles, width, height) {
     const o = this.o;
     const m = measureFace(face, width, height);
@@ -133,20 +179,15 @@ export class FaceShapeEstimator {
     this.mouthValue = m.mouthOpen;
     this.mouthOpen = this.mouthOpen ? m.mouthOpen > o.mouthExit : m.mouthOpen > o.mouthEnter;
 
-    if (!angles) return { status: 'pose', message: 'Kafa pozu hesaplanamadı.' };
-    if (Math.abs(angles.yaw) > o.maxYaw || Math.abs(angles.pitch) > o.maxPitch || Math.abs(angles.roll) > o.maxRoll) {
-      return { status: 'pose', message: `${poseHint(angles, o)} ${STATUS_TEXT.pose}` };
+    this.gates = evaluateGates({ face, measurement: m, angles, mouthOpen: this.mouthOpen, forehead: this.forehead }, o);
+    const failed = this.gates.find((g) => !g.ok);
+    if (!failed) return null;
+    if (failed.key === 'pose') {
+      return angles
+        ? { status: 'pose', message: `${poseHint(angles, o)} ${STATUS_TEXT.pose}` }
+        : { status: 'pose', message: 'Kafa pozu hesaplanamadı.' };
     }
-    const used = Object.values(SHAPE_LANDMARKS).flat(2);
-    if (used.some((i) => face[i].x < 0.01 || face[i].x > 0.99 || face[i].y < 0.01 || face[i].y > 0.99)) {
-      return { status: 'out-of-frame' };
-    }
-    if (m.px.cheekbone < o.minCheekPx) return { status: 'too-far' };
-    if (this.mouthOpen) return { status: 'mouth' };
-    const bad = Object.entries(PLAUSIBLE).some(([k, [lo, hi]]) => m.ratios[k] < lo || m.ratios[k] > hi);
-    if (bad || m.angleAsymmetry > o.maxAngleAsymmetry) return { status: 'implausible' };
-    if (this.forehead !== null && this.forehead < o.minForehead) return { status: 'forehead' };
-    return null;
+    return { status: failed.key };
   }
 
   setState(status, extra = {}) {

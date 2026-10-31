@@ -4,10 +4,21 @@ const MODES = [
 ];
 
 /**
- * Kamera üstündeki araç çubuğu: 2D/3D geçişi, gözlüğü göster/gizle ve ekran görüntüsü.
+ * Kamera üstündeki araç çubuğu: 2D/3D geçişi, gözlüğü göster/gizle, Algoritma Modu ve ekran görüntüsü.
  * Aynalanmamış katmanda durur (yazılar düz okunur).
  */
-export function StageToolbar({ mode, onModeChange, showGlasses, onShowGlassesChange, onSnapshot, canSnapshot, busy, scene3D }) {
+export function StageToolbar({
+  mode,
+  onModeChange,
+  showGlasses,
+  onShowGlassesChange,
+  algorithm = false,
+  onAlgorithmChange,
+  onSnapshot,
+  canSnapshot,
+  busy,
+  scene3D,
+}) {
   return (
     <div className="stage-toolbar" role="toolbar" aria-label="Görünüm araçları">
       <div className="segmented segmented--compact" role="radiogroup" aria-label="Görünüm modu">
@@ -23,6 +34,13 @@ export function StageToolbar({ mode, onModeChange, showGlasses, onShowGlassesCha
         <input type="checkbox" checked={showGlasses} onChange={(e) => onShowGlassesChange(e.target.checked)} />
         <span>Gözlük</span>
       </label>
+
+      {onAlgorithmChange && (
+        <label className="toolbar-toggle" title="İşlem adımlarını kamera üzerinde göster">
+          <input type="checkbox" checked={algorithm} onChange={(e) => onAlgorithmChange(e.target.checked)} />
+          <span>Algoritma</span>
+        </label>
+      )}
 
       <button
         type="button"
