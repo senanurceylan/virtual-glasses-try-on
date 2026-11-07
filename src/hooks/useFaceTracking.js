@@ -33,6 +33,9 @@ import { useFrameLoop } from './useFrameLoop.js';
  * verisi `placementRef`, ham/filtreli titreme ölçümü `stabilityRef`, yüz şekli durumu
  * `faceShapeRef` ile paneller tarafından periyodik okunur.
  *
+ * benchmarkRef: ölçüm sırasında BenchmarkRecorder (yoksa null); her karenin yerleştirme
+ * sonucu ona verilir. Ölçüm yokken tek bir null kontrolüdür.
+ *
  * captureRef: ekran görüntüsü isteği (fonksiyon). Kare çizildikten hemen sonra, aynı
  * görevde katmanlarla çağrılır; böylece WebGL çizimi henüz temizlenmemiştir.
  *
@@ -52,6 +55,7 @@ export function useFaceTracking({
   enabled,
   options,
   captureRef,
+  benchmarkRef,
 }) {
   const clock = useMemo(() => createMonotonicClock(), []);
   const presence = useMemo(() => new FacePresence(), []);
@@ -100,6 +104,7 @@ export function useFaceTracking({
     );
     placementRef.current = placement;
     stability.update(placement);
+    benchmarkRef?.current?.observePlacement(placement);
 
     perf.measure('Çizim', () => {
       // 2D gözlük yalnızca 2D modda; 3D modda bu katman boş kalır.

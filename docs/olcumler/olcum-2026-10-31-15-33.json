@@ -1,0 +1,520 @@
+{
+  "env": {
+    "resolution": "1280×720",
+    "frameRate": 30,
+    "delegate": "GPU",
+    "date": "2026-10-31T15:33:01.059Z",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+    "timing": {
+      "warmupMs": 3000,
+      "durationMs": 10000
+    }
+  },
+  "results": [
+    {
+      "scenario": {
+        "id": "S1",
+        "name": "Referans: 2D, Algoritma kapalı, filtre açık",
+        "motion": "still",
+        "instruction": "Başınızı sabit tutun, doğrudan kameraya bakın.",
+        "settings": {
+          "mode": "2d",
+          "stabilize": true,
+          "algo": false
+        }
+      },
+      "effectiveMode": "2d",
+      "env": {
+        "resolution": "1280×720"
+      },
+      "summary": {
+        "frames": 300,
+        "faceRate": 1,
+        "fps": 30.00030000298215,
+        "interval": {
+          "mean": 33.333000000019865,
+          "p95": 34.5,
+          "n": 300
+        },
+        "frameMs": {
+          "mean": 17.406666667262712,
+          "p95": 21.104999993741515,
+          "n": 300
+        },
+        "stages": {
+          "Tespit": {
+            "mean": 16.992333333194257,
+            "p95": 19.80500001162291,
+            "n": 300
+          },
+          "Yerleştirme": {
+            "mean": 0.014333333571751912,
+            "p95": 0.09999999403953552,
+            "n": 300
+          },
+          "Çizim": {
+            "mean": 0.02233333349227905,
+            "p95": 0.09999999552965164,
+            "n": 300
+          },
+          "Yüz şekli": {
+            "mean": 0.3586666670441627,
+            "p95": 2.2050000175833713,
+            "n": 300
+          }
+        },
+        "jitter": {
+          "rawPx": 0.5971877406925222,
+          "filteredPx": 0.5125564195081838,
+          "rawPctIpd": 0.6185926680677044,
+          "filteredPctIpd": 0.5309279167571618,
+          "reduction": 0.14171644094066083,
+          "meanDeviationPx": 0.9529523158744437,
+          "ipdPx": 96.53973794386464,
+          "samples": 299
+        },
+        "lag": {
+          "frames": 2.1247086686630348,
+          "ms": 70.82291405258715,
+          "amplitudePx": 19.755306243896484,
+          "reliable": false
+        }
+      }
+    },
+    {
+      "scenario": {
+        "id": "S2",
+        "name": "2D, Algoritma açık (varsayılan katmanlar)",
+        "motion": "still",
+        "instruction": "Başınızı sabit tutun, doğrudan kameraya bakın.",
+        "settings": {
+          "mode": "2d",
+          "stabilize": true,
+          "algo": "default"
+        }
+      },
+      "effectiveMode": "2d",
+      "env": {
+        "resolution": "1280×720"
+      },
+      "summary": {
+        "frames": 300,
+        "faceRate": 1,
+        "fps": 29.996700362977954,
+        "interval": {
+          "mean": 33.33699999998013,
+          "p95": 43.81500001102686,
+          "n": 300
+        },
+        "frameMs": {
+          "mean": 18.122666667004427,
+          "p95": 22.30500001162291,
+          "n": 300
+        },
+        "stages": {
+          "Tespit": {
+            "mean": 17.563000000814597,
+            "p95": 21.899999977648257,
+            "n": 300
+          },
+          "Yerleştirme": {
+            "mean": 0.01166666676600774,
+            "p95": 0.09999999403953552,
+            "n": 300
+          },
+          "Çizim": {
+            "mean": 0.02033333361148834,
+            "p95": 0.09999999552965164,
+            "n": 300
+          },
+          "Algoritma": {
+            "mean": 0.16566666573286057,
+            "p95": 0.29999998211860657,
+            "n": 300
+          },
+          "Yüz şekli": {
+            "mean": 0.3483333335320155,
+            "p95": 2.199999989569187,
+            "n": 300
+          }
+        },
+        "jitter": {
+          "rawPx": 0.2625579950101322,
+          "filteredPx": 0.18298917023728875,
+          "rawPctIpd": 0.27407134168599157,
+          "filteredPctIpd": 0.19101336982332096,
+          "reduction": 0.3030523780842129,
+          "meanDeviationPx": 0.4894094879025163,
+          "ipdPx": 95.79914244041962,
+          "samples": 299
+        },
+        "lag": {
+          "frames": 2.650307237176146,
+          "ms": 88.35329236568852,
+          "amplitudePx": 6.2944793701171875,
+          "reliable": false
+        }
+      }
+    },
+    {
+      "scenario": {
+        "id": "S3",
+        "name": "2D, Algoritma açık (tüm katmanlar)",
+        "motion": "still",
+        "instruction": "Başınızı sabit tutun, doğrudan kameraya bakın.",
+        "settings": {
+          "mode": "2d",
+          "stabilize": true,
+          "algo": "all"
+        }
+      },
+      "effectiveMode": "2d",
+      "env": {
+        "resolution": "1280×720"
+      },
+      "summary": {
+        "frames": 301,
+        "faceRate": 1,
+        "fps": 30.002491901320706,
+        "interval": {
+          "mean": 33.33056478405316,
+          "p95": 49.599999994039536,
+          "n": 301
+        },
+        "frameMs": {
+          "mean": 17.526245846601817,
+          "p95": 21.399999976158142,
+          "n": 301
+        },
+        "stages": {
+          "Tespit": {
+            "mean": 16.547840531977307,
+            "p95": 19.599999994039536,
+            "n": 301
+          },
+          "Yerleştirme": {
+            "mean": 0.012624584955234464,
+            "p95": 0.09999999403953552,
+            "n": 301
+          },
+          "Çizim": {
+            "mean": 0.017940199256339343,
+            "p95": 0.09999999403953552,
+            "n": 301
+          },
+          "Algoritma": {
+            "mean": 0.6089700989152902,
+            "p95": 0.7000000178813934,
+            "n": 301
+          },
+          "Yüz şekli": {
+            "mean": 0.3269102986270803,
+            "p95": 2.300000011920929,
+            "n": 301
+          }
+        },
+        "jitter": {
+          "rawPx": 2.2066872078666124,
+          "filteredPx": 2.1651589287649187,
+          "rawPctIpd": 2.2917663256133287,
+          "filteredPctIpd": 2.2486369182072172,
+          "reduction": 0.01881928664545196,
+          "meanDeviationPx": 1.6114436370596836,
+          "ipdPx": 96.28761812250004,
+          "samples": 300
+        },
+        "lag": {
+          "frames": 0.9995110224917269,
+          "ms": 33.314266887535716,
+          "amplitudePx": 115.81744194030762,
+          "reliable": true
+        }
+      }
+    },
+    {
+      "scenario": {
+        "id": "S4",
+        "name": "3D, Algoritma kapalı, filtre açık",
+        "motion": "still",
+        "instruction": "Başınızı sabit tutun, doğrudan kameraya bakın.",
+        "settings": {
+          "mode": "3d",
+          "stabilize": true,
+          "algo": false
+        }
+      },
+      "effectiveMode": "3d",
+      "env": {
+        "resolution": "1280×720"
+      },
+      "summary": {
+        "frames": 300,
+        "faceRate": 1,
+        "fps": 30.00030000307156,
+        "interval": {
+          "mean": 33.332999999920524,
+          "p95": 34.30500001162291,
+          "n": 300
+        },
+        "frameMs": {
+          "mean": 18.348999999364217,
+          "p95": 21.50499999970198,
+          "n": 300
+        },
+        "stages": {
+          "Tespit": {
+            "mean": 17.62233333259821,
+            "p95": 19.69999998807907,
+            "n": 300
+          },
+          "Yerleştirme": {
+            "mean": 0.01399999996026357,
+            "p95": 0.09999999403953552,
+            "n": 300
+          },
+          "Çizim": {
+            "mean": 0.012333333194255829,
+            "p95": 0.09999999403953552,
+            "n": 300
+          },
+          "3D çizim": {
+            "mean": 0.3223333328962326,
+            "p95": 0.5,
+            "n": 300
+          },
+          "Yüz şekli": {
+            "mean": 0.36100000043710073,
+            "p95": 2.4000000059604645,
+            "n": 300
+          }
+        },
+        "jitter": {
+          "rawPx": 1.91641368184679,
+          "filteredPx": 1.8290365007653162,
+          "rawPctIpd": 2.009407801738016,
+          "filteredPctIpd": 1.9177906362887531,
+          "reduction": 0.04559411253903756,
+          "meanDeviationPx": 2.137010133270606,
+          "ipdPx": 95.3720633606184,
+          "samples": 299
+        },
+        "lag": {
+          "frames": 1.375658348047711,
+          "ms": 45.85481971536502,
+          "amplitudePx": 120.68887710571289,
+          "reliable": true
+        }
+      }
+    },
+    {
+      "scenario": {
+        "id": "S5",
+        "name": "2D, filtre kapalı, sabit baş",
+        "motion": "still",
+        "instruction": "Başınızı sabit tutun, doğrudan kameraya bakın.",
+        "settings": {
+          "mode": "2d",
+          "stabilize": false,
+          "algo": false
+        }
+      },
+      "effectiveMode": "2d",
+      "env": {
+        "resolution": "1280×720"
+      },
+      "summary": {
+        "frames": 300,
+        "faceRate": 1,
+        "fps": 29.95088055595964,
+        "interval": {
+          "mean": 33.387999999920524,
+          "p95": 50.099999994039536,
+          "n": 300
+        },
+        "frameMs": {
+          "mean": 16.626000000834466,
+          "p95": 20.199999989569186,
+          "n": 300
+        },
+        "stages": {
+          "Tespit": {
+            "mean": 16.23100000053644,
+            "p95": 19.8049999833107,
+            "n": 300
+          },
+          "Yerleştirme": {
+            "mean": 0.010666666924953461,
+            "p95": 0.09999999403953552,
+            "n": 300
+          },
+          "Çizim": {
+            "mean": 0.021666667064030965,
+            "p95": 0.10000002384185791,
+            "n": 300
+          },
+          "Yüz şekli": {
+            "mean": 0.35199999978144964,
+            "p95": 2.404999977350236,
+            "n": 300
+          }
+        },
+        "jitter": {
+          "rawPx": 2.1060805891357233,
+          "filteredPx": 2.1060805891357233,
+          "rawPctIpd": 2.223670470212249,
+          "filteredPctIpd": 2.223670470212249,
+          "reduction": 0,
+          "meanDeviationPx": 0,
+          "ipdPx": 94.71190166655845,
+          "samples": 299
+        },
+        "lag": {
+          "frames": 0,
+          "ms": 0,
+          "amplitudePx": 129.0575408935547,
+          "reliable": true
+        }
+      }
+    },
+    {
+      "scenario": {
+        "id": "S6",
+        "name": "2D, filtre açık, hareketli baş",
+        "motion": "moving",
+        "instruction": "Başınızı yavaşça sağa ve sola çevirin (yaklaşık saniyede bir gidiş-dönüş).",
+        "settings": {
+          "mode": "2d",
+          "stabilize": true,
+          "algo": false
+        }
+      },
+      "effectiveMode": "2d",
+      "env": {
+        "resolution": "1280×720"
+      },
+      "summary": {
+        "frames": 299,
+        "faceRate": 1,
+        "fps": 29.85283252466441,
+        "interval": {
+          "mean": 33.49765886281645,
+          "p95": 44.00999999940395,
+          "n": 299
+        },
+        "frameMs": {
+          "mean": 17.465217391384087,
+          "p95": 22.01000000238418,
+          "n": 299
+        },
+        "stages": {
+          "Tespit": {
+            "mean": 17.02675585433791,
+            "p95": 20.410000005364413,
+            "n": 299
+          },
+          "Yerleştirme": {
+            "mean": 0.01839464882943144,
+            "p95": 0.09999999403953552,
+            "n": 299
+          },
+          "Çizim": {
+            "mean": 0.024414715559586235,
+            "p95": 0.09999999403953552,
+            "n": 299
+          },
+          "Yüz şekli": {
+            "mean": 0.3842809350793577,
+            "p95": 2.410000005364415,
+            "n": 299
+          }
+        },
+        "jitter": {
+          "rawPx": 0.6981402017067465,
+          "filteredPx": 0.6427977431884416,
+          "rawPctIpd": 0.7306199432858879,
+          "filteredPctIpd": 0.6727027744921475,
+          "reduction": 0.07927126726552769,
+          "meanDeviationPx": 1.006394906677569,
+          "ipdPx": 95.55449562010763,
+          "samples": 298
+        },
+        "lag": {
+          "frames": 1.9032970796335524,
+          "ms": 63.75599628815954,
+          "amplitudePx": 40.11969566345215,
+          "reliable": true
+        }
+      }
+    },
+    {
+      "scenario": {
+        "id": "S7",
+        "name": "2D, filtre kapalı, hareketli baş",
+        "motion": "moving",
+        "instruction": "Başınızı yavaşça sağa ve sola çevirin (yaklaşık saniyede bir gidiş-dönüş).",
+        "settings": {
+          "mode": "2d",
+          "stabilize": false,
+          "algo": false
+        }
+      },
+      "effectiveMode": "2d",
+      "env": {
+        "resolution": "1280×720"
+      },
+      "summary": {
+        "frames": 301,
+        "faceRate": 1,
+        "fps": 30.004585418423066,
+        "interval": {
+          "mean": 33.328239202598404,
+          "p95": 39.80000001192093,
+          "n": 301
+        },
+        "frameMs": {
+          "mean": 17.631561460586084,
+          "p95": 22,
+          "n": 301
+        },
+        "stages": {
+          "Tespit": {
+            "mean": 17.333222590114588,
+            "p95": 20.900000005960464,
+            "n": 301
+          },
+          "Yerleştirme": {
+            "mean": 0.008970099628169671,
+            "p95": 0.09999999403953552,
+            "n": 301
+          },
+          "Çizim": {
+            "mean": 0.01627907018328822,
+            "p95": 0.09999999403953552,
+            "n": 301
+          },
+          "Yüz şekli": {
+            "mean": 0.2611295676904659,
+            "p95": 2.300000011920929,
+            "n": 301
+          }
+        },
+        "jitter": {
+          "rawPx": 3.1918265821814944,
+          "filteredPx": 3.1918265821814944,
+          "rawPctIpd": 3.291662859832012,
+          "filteredPctIpd": 3.291662859832012,
+          "reduction": 0,
+          "meanDeviationPx": 0,
+          "ipdPx": 96.96699565229434,
+          "samples": 300
+        },
+        "lag": {
+          "frames": 0,
+          "ms": 0,
+          "amplitudePx": 157.64777183532715,
+          "reliable": true
+        }
+      }
+    }
+  ]
+}

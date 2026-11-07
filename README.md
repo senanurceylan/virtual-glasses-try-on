@@ -6,7 +6,25 @@ Web kamerasından yüz ve yüz referans noktalarını gerçek zamanlı tespit ed
 modellerini yüze uygun konum, boyut ve açıda yerleştiren; yüz şekline göre tahmini
 gözlük önerileri sunan web uygulaması.
 
-**Teknolojiler:** React + Vite · MediaPipe Face Landmarker · Three.js · Vitest
+**Teknolojiler:** React 19 + Vite 8 · MediaPipe Tasks Vision 1.1 (Face Landmarker) · Three.js r186 · Vitest 5
+
+## Özellikler
+
+- **Yüz takibi:** Her karede 478 yüz noktası ve kafa pozu matrisi; tamamen tarayıcıda, görüntü hiçbir yere gönderilmez.
+- **2D gözlük:** Göz köşelerinden göz merkezleri, eğim açısı ve afin dönüşüm (öteleme, dönme, ölçek).
+- **3D gözlük:** Kafa pozu, piksel ölçekli ortografik kamera, yüz ağı + kafa elipsoidi ile occlusion.
+- **Stabilizasyon:** One Euro filtresi; ham/filtreli karşılaştırma ve canlı titreme ölçümü.
+- **Yüz şekli (yaklaşık):** Normalize oranlar, çok kareli medyan, altı güvenilirlik koşulu, altı şekil prototipi.
+- **Öneri:** Altı parametrik çerçeve; oranlara dayalı, gerekçeli ve sezgisel öneri puanı.
+- **Algoritma Modu:** İşlem adımları kamera üzerinde canlı (noktalar, geometri, eksenler, filtre, ölçü çizgileri).
+- **Ölçüm:** Gerçek kamera performans protokolü; JSON/CSV dışa aktarma.
+- **Ekran görüntüsü:** Önizleme ve yerel indirme.
+
+**Belgeler:**
+- [Teknik rapor](docs/teknik-rapor.md)
+- [Ölçüm protokolü](docs/olcum-protokolu.md)
+- [Canlı demo planı](docs/demo-plani.md)
+- [Ham ölçümler](docs/olcumler/)
 
 ## Kurulum
 
@@ -74,7 +92,8 @@ src/
   render/      Canvas / Three.js çizimleri
   components/  Arayüz bileşenleri
   styles/      CSS
-tests/         Vitest birim testleri
+tests/         Vitest birim ve arayüz testleri (fixtures/: MediaPipe kanonik yüz ağı)
+docs/          Teknik rapor, ölçüm protokolü, demo planı, ham ölçümler (olcumler/)
 scripts/       Yardımcı scriptler (model indirme, WASM kopyalama, gözlük PNG üretimi)
 assets/        Gözlük görsellerinin SVG kaynakları (classic-black elle çizildi, diğerleri üretilir)
 ```
@@ -256,6 +275,61 @@ Her katman paneldeki **Katmanlar** bölümünden ayrı açılıp kapatılır:
    - Ölçülen CPU çizim maliyeti (Chrome, M2, 1280×720): varsayılan katmanlar ≈ 0,09 ms/kare, ağ dahil tüm
      katmanlar ≈ 0,15 ms/kare.
 
+## Performans ölçümü
+
+**Teknik ayrıntılar → Performans ölçümü** paneli, gerçek kamerayla 7 senaryoluk bir ölçüm protokolü çalıştırır:
+Algoritma Modu kapalı/açık, varsayılan/tüm katmanlar, 2D/3D, One Euro kapalı/açık (sabit ve hareketli baş).
+Her senaryo 3 sn ısınma ve 10 sn (ya da 20 sn) kayıttan oluşur. Ölçülen değerler:
+- FPS;
+- kare süresi ve aşama süreleri (ortalama ve p95);
+- göz merkezi titremesi (ham/filtreli, azalma yüzdesi);
+- filtre gecikmesi.
+
+Sonuçlar JSON/CSV olarak indirilebilir ya da Markdown tablo olarak kopyalanabilir. Hepsi yalnızca tarayıcıda
+kalır. Koşullar ve adımlar için [docs/olcum-protokolu.md](docs/olcum-protokolu.md) dosyasına bakın.
+
+Sentetik filtre benchmark'ı (yapay gürültü ve hareket; gerçek kamera ölçümü değildir):
+
+```bash
+npm run bench:filter
+```
+
+### Gerçek kamera sonuçları (31.10.2026)
+
+Koşullar: tek cihaz (Mac), Chrome 156, MediaPipe GPU, 1280×720 @ 30 FPS kamera, 3 tekrar. Tablolar
+`node scripts/summarize-measurements.mjs` ile `docs/olcumler/` dosyalarından üretilir.
+
+- **FPS:** Yedi senaryonun hepsinde ortalama ≈30. Bu, kameranın kare hızı sınırıdır.
+- **Kare işleme süresi:** Ortalama 16,6–17,3 ms, p95 20,7–22,5 ms. 30 FPS için kare bütçesi 33,3 ms'dir.
+- **Darboğaz:** Kare süresinin %94–98'i MediaPipe tespiti.
+- **Ek çizim maliyetleri:** Algoritma Modu ≈0,18 ms (varsayılan) ve ≈0,60 ms (tüm katmanlar); 3D çizim ≈0,31 ms.
+  Senaryolar arasındaki toplam kare süresi farkları, tekrarlar arası değişimden küçük olduğu için bu
+  özelliklere atfedilmez.
+- **Sabit başta One Euro:** Göz merkezi titremesini geçerli tekrarlarda %13–30 azalttı. Ham titreme zaten
+  ≈0,2–0,6 px. Sentetik benchmark'taki %86'dan düşüktür.
+- **Hareketli baş:** Yüz tespit oranı bazı tekrarlarda %90'ın altına düştü (%75–87). Filtrenin hareketli
+  baştaki gecikmesi bu ölçümlerle kesin olarak belirlenemedi.
+
+Ayrıntı ve yorumlar: [teknik rapor, Bölüm 13](docs/teknik-rapor.md#13-performans-karşılaştırmaları-gerçek-ölçüm).
+
+## Testler
+
+```bash
+npm test               # 23 dosyada 312 test (Vitest; tarayıcı ve kamera gerekmez)
+npm run build          # üretim derlemesi
+npm run bench:filter   # sentetik One Euro benchmark'ı
+```
+
+Testler şunları kapsar:
+- geometri (göz merkezleri, afin dönüşüm), kafa pozu ve 3D model;
+- occlusion, One Euro filtresi ve stabilizatör;
+- yüz şekli ölçümü, tahmin edici koşulları ve öneriler;
+- MediaPipe kanonik yüz ağıyla landmark hizalama ve bölge doğruluğu;
+- Algoritma Modu çizimleri, ölçüm altyapısı, kamera durum makinesi;
+- ekran görüntüsü ve arayüz.
+
+Sentetik testler algoritmanın tasarlandığı gibi çalıştığını gösterir; gerçek yüzlerde doğruluk kanıtı değildir.
+
 ## Teknik sınırlamalar
 
 - **Yüz şekli** tahmini prototip oranlara dayanır ve gerçek yüz verisiyle kalibre edilmemiştir. Yüzdeler benzerliktir,
@@ -267,8 +341,9 @@ Her katman paneldeki **Katmanlar** bölümünden ayrı açılıp kapatılır:
   ölçüsü ortalama göz bebeği mesafesine (6,3 cm) göre ayarlanır.
 - **3D mod** WebGL ister. Desteklenmezse uygulama 2D moda düşer. Occlusion yüz ağı ve basit bir kafa elipsoidiyle
   yapılır; saç ve kulaklar modellenmez.
-- **Performans** cihaza bağlıdır. M2 MacBook'ta GPU ile yaklaşık 30 FPS ölçüldü. Zayıf cihazlarda FPS düşebilir;
-  One Euro filtresi gerçek kare süresini kullandığı için davranışı FPS'ten büyük ölçüde bağımsızdır.
+- **Performans** cihaza bağlıdır. Ölçümler tek bir Mac'te (Chrome, GPU) yapıldı ve kameranın 30 FPS sınırına
+  ulaştı. Başka donanımda, CPU çıkarımında ya da mobilde ölçülmedi. One Euro filtresi gerçek kare süresini
+  kullandığı için davranışı FPS'ten büyük ölçüde bağımsızdır.
 - **Tarayıcı:** Chrome ile test edildi. Safari ve Firefox'ta `requestVideoFrameCallback` ve WebGL davranışları
   farklılık gösterebilir; kapsamlı olarak denenmedi.
 - **Ekran:** Masaüstü ve tablet (≥ 768 px) için tasarlandı; telefon ekranında çalışır ama düzen sıkışıktır.
@@ -283,4 +358,4 @@ Her katman paneldeki **Katmanlar** bölümünden ayrı açılıp kapatılır:
 - [x] **Aşama 5:** Yüz şekli tahmini ve gözlük önerileri: oranlar, çok kareli tahmin, güvenilirlik kontrolleri, 6 çerçeve (tamamlandı)
 - [x] **Aşama 6:** Profesyonel arayüz: yeni düzen, katalog, kamera durumları, ekran görüntüsü (tamamlandı)
 - [x] **Aşama 7:** Algoritma Modu: landmark bölgeleri, yerleştirme geometrisi, kafa pozu eksenleri, filtre ve yüz şekli görselleştirmesi (tamamlandı)
-- [ ] Aşama 8: Test ve rapor
+- [ ] Aşama 8: Son doğrulama, performans ölçümü ve teknik rapor (ölçümler alındı, rapor hazır; onay bekleniyor)

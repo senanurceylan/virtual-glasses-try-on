@@ -1239,3 +1239,64 @@ a.btn {
   gap: 6px;
   margin-top: 8px;
 }
+
+/* ---------- Performans ölçümü ---------- */
+.scenario-list {
+  margin: 8px 0;
+  padding-left: 0;
+  list-style: none;
+  line-height: 1.6;
+}
+
+.scenario-list li.is-active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.link-btn {
+  margin-left: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.bench-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.bench-actions select {
+  margin-left: 4px;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 4px;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.bench-table {
+  white-space: nowrap;
+}
+
+.bench-warn {
+  color: var(--warn);
+  font-size: 11px;
+}
+
+.compare-list {
+  margin: 6px 0;
+  padding-left: 18px;
+  line-height: 1.5;
+}

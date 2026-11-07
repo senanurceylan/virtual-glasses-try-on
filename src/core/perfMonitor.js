@@ -8,6 +8,8 @@
 //   perf.snapshot() → { fps, frameMs, stages: { algılama: {avg,min,max,last}, ... } }
 //
 // Değerler son `windowSize` kare üzerinden kayan pencere ile hesaplanır.
+// Ölçüm (benchmark) sırasında setListener ile her karenin ham değerleri dışarı verilir;
+// dinleyici yokken kare başına ek iş yapılmaz.
 // `now` dışarıdan verilebildiği için zaman sahte saatle test edilebilir.
 
 class RingBuffer {
@@ -48,6 +50,8 @@ export class PerfMonitor {
   constructor({ windowSize = 60, now = () => performance.now() } = {}) {
     this.windowSize = windowSize;
     this.now = now;
+    this.listener = null; // reset() dinleyiciyi silmez
+    this.current = null;
     this.reset();
   }
 
@@ -61,21 +65,39 @@ export class PerfMonitor {
 
   frameStart() {
     const t = this.now();
-    if (this.lastFrameStart !== null) this.frameIntervals.push(t - this.lastFrameStart);
+    const interval = this.lastFrameStart !== null ? t - this.lastFrameStart : null;
+    if (interval !== null) this.frameIntervals.push(interval);
     this.lastFrameStart = t;
     this.currentFrameStart = t;
+    if (this.listener) this.current = { interval, stages: {} };
   }
 
   frameEnd() {
     if (this.currentFrameStart === null) return;
-    this.frameDurations.push(this.now() - this.currentFrameStart);
+    const t = this.now();
+    const duration = t - this.currentFrameStart;
+    this.frameDurations.push(duration);
     this.currentFrameStart = null;
+    if (this.listener && this.current) {
+      this.listener({ interval: this.current.interval, duration, stages: this.current.stages }, t);
+    }
+    this.current = null;
+  }
+
+  /**
+   * Her kare sonunda fn({ interval, duration, stages }, now) çağrılır (null: kapat).
+   * interval: önceki kare başlangıcından bu yana (ms; ilk karede null).
+   */
+  setListener(fn) {
+    this.listener = fn;
+    this.current = null;
   }
 
   /** Bir aşamanın süresini doğrudan kaydeder (ms). */
   record(name, ms) {
     if (!this.stages.has(name)) this.stages.set(name, new RingBuffer(this.windowSize));
     this.stages.get(name).push(ms);
+    if (this.current) this.current.stages[name] = ms;
   }
 
   /** Artık çalışmayan bir aşamanın kayıtlarını siler (ör. Algoritma Modu kapanınca). */

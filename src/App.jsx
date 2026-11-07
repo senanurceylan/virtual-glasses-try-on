@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { AlgorithmPanel } from './components/AlgorithmPanel.jsx';
+import { BenchmarkPanel, benchmarkNotice } from './components/BenchmarkPanel.jsx';
 import { CameraStage } from './components/CameraStage.jsx';
 import { Collapsible } from './components/Collapsible.jsx';
 import { FaceShapePanel } from './components/FaceShapePanel.jsx';
@@ -15,6 +16,7 @@ import { DEFAULT_ALGO } from './core/algorithmLayers.js';
 import { DEFAULT_FRAME_ID } from './core/frameStyles.js';
 import { DEFAULT_PARAMS } from './core/oneEuroFilter.js';
 import { PerfMonitor } from './core/perfMonitor.js';
+import { useBenchmark } from './hooks/useBenchmark.js';
 import { useCamera } from './hooks/useCamera.js';
 import { useFaceLandmarker } from './hooks/useFaceLandmarker.js';
 import { useFaceShapeState } from './hooks/useFaceShapeState.js';
@@ -66,6 +68,23 @@ export default function App() {
   const { model: glassesModel, glasses } = useGlassesModel(glassesId);
   const { captureRef, capture } = useSnapshot();
   const running = camera.status === 'ready';
+  const mode = view.mode === '3d' && scene3D.status !== 'error' ? '3d' : '2d';
+
+  // Gerçek kamera ölçüm protokolü (Aşama 8): senaryo ayarlarını uygular, kareleri toplar.
+  const bench = useBenchmark({
+    perf,
+    running,
+    view,
+    setView,
+    algo,
+    setAlgo,
+    mode,
+    env: () => ({
+      resolution: camera.info ? `${camera.info.width}×${camera.info.height}` : null,
+      frameRate: camera.info?.frameRate ?? null,
+      delegate: model.delegate ?? null,
+    }),
+  });
 
   const { faceVisible, placementRef, stabilityRef, faceShapeRef } = useFaceTracking({
     videoRef: camera.videoRef,
@@ -78,6 +97,7 @@ export default function App() {
     enabled: running && model.status === 'ready',
     options: { overlay: overlayStyle, glasses, algorithm: algo, ...view },
     captureRef,
+    benchmarkRef: bench.recorderRef,
   });
   const faceShape = useFaceShapeState(faceShapeRef);
   const comparison = useModeComparison(perf, running, algo.enabled);
@@ -98,7 +118,6 @@ export default function App() {
   const closeSnapshot = useCallback(() => setSnapshot(null), []);
 
   const status = trackingStatus({ model, running, faceVisible });
-  const mode = view.mode === '3d' && scene3D.status !== 'error' ? '3d' : '2d';
 
   return (
     <div className="app">
@@ -138,7 +157,7 @@ export default function App() {
             errorName={camera.errorName}
             info={camera.info}
             onStart={camera.start}
-            notice={stageNotice(model, faceVisible)}
+            notice={benchmarkNotice(bench, faceVisible) ?? stageNotice(model, faceVisible)}
             hud={<StageHud perf={perf} mode={mode} />}
             toolbar={
               <StageToolbar
@@ -195,6 +214,12 @@ export default function App() {
             </Collapsible>
             <Collapsible title="Yerleştirme hesapları" hint={mode.toUpperCase()}>
               <PlacementPanel placementRef={placementRef} mode={mode} />
+            </Collapsible>
+            <Collapsible
+              title="Performans ölçümü"
+              hint={bench.status === 'running' ? 'ölçülüyor…' : bench.results.length ? `${bench.results.length} senaryo` : 'protokol'}
+            >
+              <BenchmarkPanel bench={bench} running={running} />
             </Collapsible>
             <Collapsible title="Model bilgisi">
               <ModelInfo model={model} faceVisible={faceVisible} />
